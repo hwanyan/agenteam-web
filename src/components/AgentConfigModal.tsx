@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, ModelOption, Option } from '../types'
+import { IconClose } from '../icons'
 
 interface AgentConfigModalProps {
   agentId: string
@@ -115,7 +116,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
             {version ? ` · v${version}` : ''}
           </span>
           <button className="modal-close" onClick={onClose}>
-            ×
+            <IconClose size={16} />
           </button>
         </div>
 

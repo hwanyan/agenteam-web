@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, Team } from '../types'
 import { AgentConfigModal } from './AgentConfigModal'
+import { IconAgent, IconChevronRight } from '../icons'
 
 interface TeamTabProps {
   teamId: string | null
@@ -112,7 +113,9 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
       ) : (
         agent && (
           <div className="agent-card" onClick={() => setModalOpen(true)}>
-            <div className="agent-card-icon">🤖</div>
+            <div className="agent-card-icon">
+              <IconAgent size={22} />
+            </div>
             <div className="agent-card-body">
               <div className="agent-card-title">
                 {agent.name}
@@ -128,7 +131,9 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
                 </span>
               </div>
             </div>
-            <div className="agent-card-arrow">›</div>
+            <div className="agent-card-arrow">
+              <IconChevronRight size={18} />
+            </div>
           </div>
         )
       )}

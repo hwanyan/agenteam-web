@@ -4,6 +4,7 @@ import { TabsBar } from './components/TabsBar'
 import { TeamTab } from './components/TeamTab'
 import { WorkspaceTab } from './components/WorkspaceTab'
 import { useAppState } from './state/useAppState'
+import { IconMark } from './icons'
 
 export default function App() {
   const {
@@ -42,9 +43,11 @@ export default function App() {
           {!activeTab && (
             <div className="page page-center">
               <div className="empty-state">
-                <div className="empty-state-icon">🤖</div>
+                <div className="empty-state-icon">
+                  <IconMark size={40} />
+                </div>
                 <div className="empty-state-title">开始使用 Agent Runtime</div>
-                <div className="text-muted">点击左侧“新增团队”创建你的第一个团队与主 Agent</div>
+                <div className="text-muted">点击左侧「新增团队」创建你的第一个团队与主 Agent</div>
               </div>
             </div>
           )}

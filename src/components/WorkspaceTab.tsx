@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ChatMessage } from '../types'
+import { IconAgent, IconSend, IconUser } from '../icons'
 
 interface WorkspaceTabProps {
   teamId: string
@@ -68,13 +69,17 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
         )}
         {messages.map((m) => (
           <div key={m.id} className={`chat-msg ${m.role === 'MESSAGE_ROLE_USER' ? 'chat-msg-user' : 'chat-msg-agent'}`}>
-            <div className="chat-msg-avatar">{m.role === 'MESSAGE_ROLE_USER' ? '🧑' : '🤖'}</div>
+            <div className="chat-msg-avatar">
+              {m.role === 'MESSAGE_ROLE_USER' ? <IconUser size={15} /> : <IconAgent size={15} />}
+            </div>
             <div className="chat-msg-bubble">{m.content}</div>
           </div>
         ))}
         {sending && (
           <div className="chat-msg chat-msg-agent">
-            <div className="chat-msg-avatar">🤖</div>
+            <div className="chat-msg-avatar">
+              <IconAgent size={15} />
+            </div>
             <div className="chat-msg-bubble chat-msg-loading">思考中...</div>
           </div>
         )}
@@ -95,7 +100,8 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
             }
           }}
         />
-        <button className="btn btn-primary" onClick={handleSend} disabled={sending || !input.trim()}>
+        <button className="btn btn-primary chat-send-btn" onClick={handleSend} disabled={sending || !input.trim()}>
+          <IconSend size={14} />
           发送
         </button>
       </div>

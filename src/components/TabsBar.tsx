@@ -1,4 +1,5 @@
 import type { TabItem } from '../state/useAppState'
+import { IconChat, IconClose, IconTeam } from '../icons'
 
 interface TabsBarProps {
   tabs: TabItem[]
@@ -17,7 +18,9 @@ export function TabsBar({ tabs, activeTabId, onActivate, onClose }: TabsBarProps
           className={`tab-item ${tab.id === activeTabId ? 'tab-item-active' : ''}`}
           onClick={() => onActivate(tab.id)}
         >
-          <span className="tab-item-icon">{tab.kind === 'workspace' ? '💬' : '👥'}</span>
+          <span className="tab-item-icon">
+            {tab.kind === 'workspace' ? <IconChat size={13} /> : <IconTeam size={13} />}
+          </span>
           <span className="tab-item-title">{tab.title}</span>
           <span
             className="tab-item-close"
@@ -26,7 +29,7 @@ export function TabsBar({ tabs, activeTabId, onActivate, onClose }: TabsBarProps
               onClose(tab.id)
             }}
           >
-            ×
+            <IconClose size={11} />
           </span>
         </div>
       ))}
