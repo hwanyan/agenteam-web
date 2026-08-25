@@ -441,6 +441,10 @@ select {
   font-size: 18px;
 }
 
+.create-team-card .btn-block {
+  margin-top: 20px;
+}
+
 /* ---------------- Agent card ---------------- */
 .agent-card {
   display: flex;
