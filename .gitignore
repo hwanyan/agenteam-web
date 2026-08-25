@@ -2,3 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# tsc -b 对 vite.config.ts 的编译产物，禁止再次提交，
+# 否则 Vite 会优先加载它而忽略 vite.config.ts（历史上导致过白屏 bug）
+/vite.config.js
+/vite.config.d.ts
