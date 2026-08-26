@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, Team } from '../types'
 import { AgentConfigModal } from './AgentConfigModal'
-import { IconAgent, IconChevronRight } from '../icons'
+import { CreateAgentModal } from './CreateAgentModal'
+import { IconAgent, IconChevronRight, IconPlus, IconTrash } from '../icons'
 
 interface TeamTabProps {
   teamId: string | null
@@ -23,9 +24,15 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
   const [error, setError] = useState<string | null>(null)
 
   const [team, setTeam] = useState<Team | null>(null)
-  const [agent, setAgent] = useState<Agent | null>(null)
+  const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  function loadAgents(id: string) {
+    return api.listAgents(id).then((res) => setAgents(res.agents ?? []))
+  }
 
   useEffect(() => {
     if (!teamId) return
@@ -36,11 +43,7 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
       .then((teamRes) => {
         if (cancelled) return
         setTeam(teamRes.team)
-        return api.getAgent(teamRes.team.mainAgentId)
-      })
-      .then((agentRes) => {
-        if (cancelled || !agentRes) return
-        setAgent(agentRes.agent)
+        return loadAgents(teamId)
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : '加载团队信息失败')
@@ -63,12 +66,27 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
     try {
       const res = await api.createTeam(name.trim())
       setTeam(res.team)
-      setAgent(res.mainAgent)
+      setAgents([res.mainAgent])
       onCreated(res.team)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '创建团队失败，请重试')
     } finally {
       setCreating(false)
+    }
+  }
+
+  async function handleDeleteAgent(agent: Agent) {
+    if (!teamId || agent.isMain) return
+    if (!window.confirm(`确认删除 Agent「${agent.name}」吗？此操作不可恢复。`)) return
+    setDeletingId(agent.id)
+    setError(null)
+    try {
+      await api.deleteAgent(agent.id)
+      setAgents((prev) => prev.filter((a) => a.id !== agent.id))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '删除失败，请重试')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -103,46 +121,78 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
     <div className="page">
       <div className="page-header">
         <h2>{team.name}</h2>
-        <button className="btn btn-primary" onClick={() => onOpenWorkspace(team)}>
-          进入工作区
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn" onClick={() => setAddModalOpen(true)}>
+            <IconPlus size={14} />
+            新增 Agent
+          </button>
+          <button className="btn btn-primary" onClick={() => onOpenWorkspace(team)}>
+            进入工作区
+          </button>
+        </div>
       </div>
       {error && <div className="form-error">{error}</div>}
-      {loading && !agent ? (
+      {loading && agents.length === 0 ? (
         <div className="text-muted">加载中...</div>
       ) : (
-        agent && (
-          <div className="agent-card" onClick={() => setModalOpen(true)}>
-            <div className="agent-card-icon">
-              <IconAgent size={22} />
-            </div>
-            <div className="agent-card-body">
-              <div className="agent-card-title">
-                {agent.name}
-                <span className="agent-card-badge">主 Agent</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {agents.map((agent) => (
+            <div className="agent-card" key={agent.id} onClick={() => setActiveAgentId(agent.id)}>
+              <div className="agent-card-icon">
+                <IconAgent size={22} />
               </div>
-              <div className="agent-card-prompt">{agent.prompt}</div>
-              <div className="agent-card-meta">
-                <span>模型：{agent.model}</span>
-                <span>MCP 工具：{agent.mcpTools?.length ?? 0}</span>
-                <span>Skill：{agent.skills?.length ?? 0}</span>
-                <span className={`agent-status agent-status-${agent.status.toLowerCase()}`}>
-                  {STATUS_LABEL[agent.status] ?? agent.status}
-                </span>
+              <div className="agent-card-body">
+                <div className="agent-card-title">
+                  {agent.name}
+                  <span className="agent-card-badge">{agent.isMain ? '主 Agent' : '子 Agent'}</span>
+                </div>
+                <div className="agent-card-prompt">{agent.prompt}</div>
+                <div className="agent-card-meta">
+                  <span>模型：{agent.model}</span>
+                  <span>MCP 工具：{agent.mcpTools?.length ?? 0}</span>
+                  <span>Skill：{agent.skills?.length ?? 0}</span>
+                  <span className={`agent-status agent-status-${agent.status.toLowerCase()}`}>
+                    {STATUS_LABEL[agent.status] ?? agent.status}
+                  </span>
+                </div>
+              </div>
+              {!agent.isMain && (
+                <button
+                  className="modal-close"
+                  title="删除 Agent"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleDeleteAgent(agent)
+                  }}
+                  disabled={deletingId === agent.id}
+                >
+                  <IconTrash size={16} />
+                </button>
+              )}
+              <div className="agent-card-arrow">
+                <IconChevronRight size={18} />
               </div>
             </div>
-            <div className="agent-card-arrow">
-              <IconChevronRight size={18} />
-            </div>
-          </div>
-        )
+          ))}
+        </div>
       )}
 
-      {modalOpen && agent && (
+      {activeAgentId && (
         <AgentConfigModal
-          agentId={agent.id}
-          onClose={() => setModalOpen(false)}
-          onSaved={(updated) => setAgent(updated)}
+          agentId={activeAgentId}
+          onClose={() => setActiveAgentId(null)}
+          onSaved={(updated) => setAgents((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))}
+        />
+      )}
+
+      {addModalOpen && (
+        <CreateAgentModal
+          teamId={teamId}
+          onClose={() => setAddModalOpen(false)}
+          onCreated={(created) => {
+            setAgents((prev) => [...prev, created])
+            setAddModalOpen(false)
+          }}
         />
       )}
     </div>

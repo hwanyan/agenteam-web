@@ -109,3 +109,11 @@ export function IconDot(props: IconProps) {
     </svg>
   )
 }
+
+export function IconTrash(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4.5 6h11M8 6V4.5h4V6M6 6l.6 10a1 1 0 0 0 1 1h4.8a1 1 0 0 0 1-1L14 6" />
+    </svg>
+  )
+}

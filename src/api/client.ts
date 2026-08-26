@@ -38,6 +38,15 @@ export const api = {
 
   // ---- Agent ----
   getAgent: (id: string) => request<{ agent: Agent }>(`/v1/agents/${id}`),
+  listAgents: (teamId: string) => request<{ agents: Agent[] }>(`/v1/teams/${teamId}/agents`),
+  createAgent: (
+    teamId: string,
+    payload: { name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] },
+  ) =>
+    request<{ agent: Agent }>(`/v1/teams/${teamId}/agents`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   updateAgent: (
     id: string,
     payload: { name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] },
@@ -49,6 +58,7 @@ export const api = {
   listModelOptions: () => request<{ models: ModelOption[] }>('/v1/options/models'),
   listMcpToolOptions: () => request<{ tools: Option[] }>('/v1/options/mcp-tools'),
   listSkillOptions: () => request<{ skills: Option[] }>('/v1/options/skills'),
+  deleteAgent: (id: string) => request<Record<string, never>>(`/v1/agents/${id}`, { method: 'DELETE' }),
 
   // ---- Workspace ----
   sendMessage: (teamId: string, content: string) =>
