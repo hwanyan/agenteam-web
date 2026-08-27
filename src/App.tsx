@@ -63,7 +63,11 @@ export default function App() {
                   onOpenWorkspace={openWorkspaceTab}
                 />
               ) : (
-                <WorkspaceTab teamId={tab.teamId} teamName={tab.title.replace(/^工作区 · /, '')} />
+                <WorkspaceTab
+                  teamId={tab.teamId}
+                  teamName={tab.title.replace(/^工作区 · /, '')}
+                  onOpenTeamConfig={() => openTeamTab({ id: tab.teamId, name: tab.title.replace(/^工作区 · /, '') })}
+                />
               )}
             </div>
           ))}

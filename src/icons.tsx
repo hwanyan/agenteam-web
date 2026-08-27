@@ -110,6 +110,16 @@ export function IconDot(props: IconProps) {
   )
 }
 
+// 团队配置：齿轮图标
+export function IconSettings(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M10 3.2v2.1M10 14.7v2.1M16.8 10h-2.1M5.3 10H3.2M14.9 5.1l-1.5 1.5M6.6 13.4l-1.5 1.5M14.9 14.9l-1.5-1.5M6.6 6.6 5.1 5.1" />
+    </svg>
+  )
+}
+
 export function IconTrash(props: IconProps) {
   return (
     <svg {...base(props)}>

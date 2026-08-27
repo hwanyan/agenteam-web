@@ -9,7 +9,8 @@
   自动切换为团队详情页（展示自动生成的主 Agent 卡片）。
 - 点击主 Agent 卡片：弹出配置弹窗（名称 / Prompt / 模型 / MCP 工具 / Skill），
   右下角“保存”会调用后端 `UpdateAgent`，服务端据此重新加载该 Agent。
-- 点击“进入工作区”：打开一个新 Tab，可与该团队的主 Agent 对话。
+- 点击“进入工作区”：打开一个新 Tab，可与该团队的主 Agent 对话；发送消息采用
+  流式接口（`sendMessageStream`），Agent 回复以打字机效果逐字显示。
 
 ## 目录结构
 

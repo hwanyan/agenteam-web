@@ -734,6 +734,27 @@ select {
   font-style: italic;
 }
 
+.chat-msg-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--ink-soft);
+  animation: chat-cursor-blink 0.9s step-end infinite;
+}
+
+@keyframes chat-cursor-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .chat-error {
   margin: 0 4px;
 }

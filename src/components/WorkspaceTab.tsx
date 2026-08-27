@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ChatMessage } from '../types'
-import { IconAgent, IconSend, IconUser } from '../icons'
+import { IconAgent, IconSend, IconSettings, IconUser } from '../icons'
 
 interface WorkspaceTabProps {
   teamId: string
   teamName: string
+  // 点击「团队配置」按钮时触发，用于回到该团队的详情页（新增团队后展示的 Agent 列表页面）。
+  onOpenTeamConfig: () => void
 }
 
-export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
+export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  // streamingText 是当前正在流式接收、尚未持久化完成的 Agent 回复增量文本；
+  // 为空字符串时表示还未收到任何 delta（此时仍展示“思考中...”）。
+  const [streamingText, setStreamingText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +43,12 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
-  }, [messages])
+  }, [messages, streamingText])
+
+  // 组件卸载或切换团队时，中断尚未结束的流式请求，避免回调写入已失效的状态。
+  useEffect(() => {
+    return () => abortRef.current?.abort()
+  }, [teamId])
 
   async function handleSend() {
     const content = input.trim()
@@ -45,14 +56,38 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
     setSending(true)
     setError(null)
     setInput('')
+    setStreamingText('')
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
-      const res = await api.sendMessage(teamId, content)
-      setMessages((prev) => [...prev, res.userMessage, res.agentMessage])
+      await api.sendMessageStream(
+        teamId,
+        content,
+        (chunk) => {
+          if (chunk.userMessage) {
+            setMessages((prev) => [...prev, chunk.userMessage as ChatMessage])
+          }
+          if (chunk.delta) {
+            setStreamingText((prev) => prev + chunk.delta)
+          }
+          if (chunk.done && chunk.agentMessage) {
+            setMessages((prev) => [...prev, chunk.agentMessage as ChatMessage])
+            setStreamingText('')
+          }
+        },
+        controller.signal,
+      )
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '发送失败，请重试')
-      setInput(content)
+      if (!controller.signal.aborted) {
+        setError(err instanceof ApiError ? err.message : '发送失败，请重试')
+        setInput(content)
+      }
     } finally {
+      setStreamingText('')
       setSending(false)
+      abortRef.current = null
     }
   }
 
@@ -60,6 +95,10 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
     <div className="page page-workspace">
       <div className="page-header">
         <h2>工作区 · {teamName}</h2>
+        <button className="btn" onClick={onOpenTeamConfig}>
+          <IconSettings size={14} />
+          团队配置
+        </button>
       </div>
 
       <div className="chat-list" ref={listRef}>
@@ -80,7 +119,14 @@ export function WorkspaceTab({ teamId, teamName }: WorkspaceTabProps) {
             <div className="chat-msg-avatar">
               <IconAgent size={15} />
             </div>
-            <div className="chat-msg-bubble chat-msg-loading">思考中...</div>
+            {streamingText ? (
+              <div className="chat-msg-bubble">
+                {streamingText}
+                <span className="chat-msg-cursor" />
+              </div>
+            ) : (
+              <div className="chat-msg-bubble chat-msg-loading">思考中...</div>
+            )}
           </div>
         )}
       </div>

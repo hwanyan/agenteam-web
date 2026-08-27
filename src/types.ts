@@ -45,6 +45,17 @@ export interface ChatMessage {
   createdAt: string
 }
 
+// SendMessageStream 流式响应的单个分片：
+// - 第一条只携带 userMessage（不含 delta）；
+// - 中间每条携带一段增量文本 delta；
+// - 最后一条 done=true，并携带完整的 agentMessage。
+export interface SendMessageStreamChunk {
+  delta?: string
+  done?: boolean
+  userMessage?: ChatMessage
+  agentMessage?: ChatMessage
+}
+
 export interface Option {
   id: string
   name: string

@@ -1,4 +1,4 @@
-import type { Agent, ChatMessage, ModelOption, Option, Team } from '../types'
+import type { Agent, ChatMessage, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
 
@@ -23,6 +23,61 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(message, resp.status)
   }
   return data as T
+}
+
+// requestStream 消费 grpc-gateway server-streaming 接口返回的 HTTP chunked 响应体：
+// 每个分片是一行 JSON，正常分片形如 { result: {...} }，出错分片形如
+// { error: { code, message } }。逐行读取、解析后通过 onChunk 回调给上层。
+async function requestStream<T>(
+  path: string,
+  init: RequestInit & { signal?: AbortSignal },
+  onChunk: (chunk: T) => void,
+): Promise<void> {
+  const resp = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  })
+  if (!resp.ok || !resp.body) {
+    let message = `请求失败（${resp.status}）`
+    try {
+      const data = JSON.parse(await resp.text())
+      message = (data && (data.message as string)) || message
+    } catch {
+      // ignore：无法解析的错误体，使用默认 message
+    }
+    throw new ApiError(message, resp.status)
+  }
+
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  const consumeLine = (line: string) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+    const parsed = JSON.parse(trimmed) as { result?: T; error?: { code: number; message: string } }
+    if (parsed.error) {
+      throw new ApiError(parsed.error.message || '流式响应出错', 0)
+    }
+    if (parsed.result) {
+      onChunk(parsed.result)
+    }
+  }
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let newlineIdx: number
+    while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, newlineIdx)
+      buffer = buffer.slice(newlineIdx + 1)
+      consumeLine(line)
+    }
+  }
+  if (buffer.trim()) {
+    consumeLine(buffer)
+  }
 }
 
 export const api = {
@@ -66,5 +121,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
+  // sendMessageStream 以 grpc-gateway server-streaming（HTTP chunked，每行一个 JSON）
+  // 方式发起对话；onChunk 会在收到每个分片时被调用，用于实现打字机效果。
+  // signal 可用于中途取消（如组件卸载/切换团队）。
+  sendMessageStream: (teamId: string, content: string, onChunk: (chunk: SendMessageStreamChunk) => void, signal?: AbortSignal) =>
+    requestStream(`/v1/teams/${teamId}/messages:stream`, { method: 'POST', body: JSON.stringify({ content }), signal }, onChunk),
   listMessages: (teamId: string) => request<{ messages: ChatMessage[] }>(`/v1/teams/${teamId}/messages`),
 }

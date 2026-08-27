@@ -55,8 +55,10 @@ export function useAppState() {
   }, [])
 
   // 打开某个已存在团队的详情 tab；若已打开则直接激活。
+  // 仅需 id/name 即可（详情数据由 TeamTab 内部通过 api.getTeam 自行加载），
+  // 因此接受 Team 的最小子集，方便从只持有 teamId/teamName 的场景（如工作区 tab）直接调用。
   const openTeamTab = useCallback(
-    (team: Team) => {
+    (team: Pick<Team, 'id' | 'name'>) => {
       setTabs((prev) => {
         const existing = prev.find((t) => t.kind === 'team' && t.teamId === team.id)
         if (existing) {
