@@ -255,6 +255,13 @@ select {
   margin: 18px 0 7px;
 }
 
+.form-label-optional {
+  text-transform: none;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: normal;
+}
+
 .form-input,
 .form-textarea,
 .form-select {

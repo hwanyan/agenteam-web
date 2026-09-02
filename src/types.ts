@@ -25,6 +25,11 @@ export interface A2AConfig {
   authScheme?: string
   authToken?: string
   authTokenSet?: boolean
+  // 部分第三方 A2A Agent 采用“TenantID + Token”双因子鉴权模型：除 Authorization:
+  // Bearer <token> 外，还要求通过 X-A2A-Tenant-Id 请求头显式声明调用方的租户身份，
+  // 二者缺一不可。tenantId 由对端预先分配、属非机密的身份标识（类似 AccessKeyId），
+  // 与 authToken 不同，服务端会如实回显，不需要脱敏。留空表示对端不需要该头。
+  tenantId?: string
   // 以下为只读字段，由后端在加载/保存时通过 Agent Card 发现请求回填
   remoteAgentName?: string
   remoteDescription?: string

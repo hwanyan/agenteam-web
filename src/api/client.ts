@@ -116,7 +116,7 @@ export const api = {
     }),
   // discoverA2AAgent 探测一个 A2A 外部 Agent 的连通性与展示信息（不产生持久化副作用），
   // 供创建/保存 A2A Agent 前预览对端的名称/描述/技能/是否支持流式。
-  discoverA2AAgent: (payload: { endpointUrl: string; authScheme?: string; authToken?: string }) =>
+  discoverA2AAgent: (payload: { endpointUrl: string; authScheme?: string; authToken?: string; tenantId?: string }) =>
     request<{ remoteAgentName: string; remoteDescription: string; remoteSkills: string[]; streaming: boolean }>(
       '/v1/a2a/discover',
       { method: 'POST', body: JSON.stringify(payload) },

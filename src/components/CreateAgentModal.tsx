@@ -37,6 +37,7 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
   const [endpointUrl, setEndpointUrl] = useState('')
   const [authScheme, setAuthScheme] = useState('bearer')
   const [authToken, setAuthToken] = useState('')
+  const [tenantId, setTenantId] = useState('')
   const [discovering, setDiscovering] = useState(false)
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
 
@@ -90,6 +91,7 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
         endpointUrl: endpointUrl.trim(),
         authScheme: authScheme || undefined,
         authToken: authToken || undefined,
+        tenantId: tenantId.trim() || undefined,
       })
       setA2aPreview(res)
       if (!name.trim() && res.remoteAgentName) {
@@ -120,7 +122,12 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
         res = await api.createAgent(teamId, {
           kind: 'AGENT_KIND_A2A',
           name: name.trim(),
-          a2aConfig: { endpointUrl: endpointUrl.trim(), authScheme, authToken: authToken || undefined },
+          a2aConfig: {
+            endpointUrl: endpointUrl.trim(),
+            authScheme,
+            authToken: authToken || undefined,
+            tenantId: tenantId.trim() || undefined,
+          },
         })
       } else {
         if (!prompt.trim()) {
@@ -228,6 +235,19 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
 
                 {authScheme === 'bearer' && (
                   <>
+                    <label className="form-label">
+                      Tenant ID <span className="form-label-optional">（对端要求时填写）</span>
+                    </label>
+                    <input
+                      className="form-input"
+                      value={tenantId}
+                      onChange={(e) => {
+                        setTenantId(e.target.value)
+                        setA2aPreview(null)
+                      }}
+                      placeholder="部分外部 Agent 采用 TenantID + Token 双因子鉴权，此处填写分配给你的 Tenant ID"
+                    />
+
                     <label className="form-label">Access Token</label>
                     <input
                       className="form-input"

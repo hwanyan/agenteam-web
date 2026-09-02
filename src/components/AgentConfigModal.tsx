@@ -47,6 +47,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
   const [authScheme, setAuthScheme] = useState('bearer')
   const [authToken, setAuthToken] = useState('')
   const [authTokenSet, setAuthTokenSet] = useState(false)
+  const [tenantId, setTenantId] = useState('')
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
   const [discovering, setDiscovering] = useState(false)
 
@@ -71,6 +72,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
           setEndpointUrl(agent.a2aConfig?.endpointUrl ?? '')
           setAuthScheme(agent.a2aConfig?.authScheme || 'bearer')
           setAuthTokenSet(Boolean(agent.a2aConfig?.authTokenSet))
+          setTenantId(agent.a2aConfig?.tenantId ?? '')
           if (agent.a2aConfig?.remoteAgentName) {
             setA2aPreview({
               remoteAgentName: agent.a2aConfig.remoteAgentName,
@@ -123,6 +125,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
         // 未修改凭证时传空，让服务端沿用已保存的 Token 做连通性探测的语义一致性
         // 此处仅用于前端预览，故直接用当前输入框内容（可能为空，代表复用旧凭证时无法在此处验证，属预期）。
         authToken: authToken || undefined,
+        tenantId: tenantId.trim() || undefined,
       })
       setA2aPreview(res)
     } catch (err) {
@@ -149,7 +152,12 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
         }
         res = await api.updateAgent(agentId, {
           name: name.trim(),
-          a2aConfig: { endpointUrl: endpointUrl.trim(), authScheme, authToken: authToken || undefined },
+          a2aConfig: {
+            endpointUrl: endpointUrl.trim(),
+            authScheme,
+            authToken: authToken || undefined,
+            tenantId: tenantId.trim() || undefined,
+          },
         })
       } else {
         if (!prompt.trim()) {
@@ -170,6 +178,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
       if (res.agent.kind === 'AGENT_KIND_A2A') {
         setAuthTokenSet(Boolean(res.agent.a2aConfig?.authTokenSet))
         setAuthToken('')
+        setTenantId(res.agent.a2aConfig?.tenantId ?? '')
         if (res.agent.a2aConfig?.remoteAgentName) {
           setA2aPreview({
             remoteAgentName: res.agent.a2aConfig.remoteAgentName,
@@ -246,6 +255,16 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
 
                 {authScheme === 'bearer' && (
                   <>
+                    <label className="form-label">
+                      Tenant ID <span className="form-label-optional">（对端要求时填写）</span>
+                    </label>
+                    <input
+                      className="form-input"
+                      value={tenantId}
+                      onChange={(e) => setTenantId(e.target.value)}
+                      placeholder="部分外部 Agent 采用 TenantID + Token 双因子鉴权，此处填写分配给你的 Tenant ID"
+                    />
+
                     <label className="form-label">Access Token</label>
                     <input
                       className="form-input"
