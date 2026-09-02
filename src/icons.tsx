@@ -127,3 +127,13 @@ export function IconTrash(props: IconProps) {
     </svg>
   )
 }
+
+// A2A 链接：两个节点通过连线相连，代表跨系统协议链接一个外部 Agent
+export function IconLink(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8.2 11.8 11.8 8.2" />
+      <path d="M9.3 6.1 10.8 4.6a3 3 0 0 1 4.3 4.3l-1.5 1.5M10.7 13.9 9.2 15.4a3 3 0 0 1-4.3-4.3l1.5-1.5" />
+    </svg>
+  )
+}

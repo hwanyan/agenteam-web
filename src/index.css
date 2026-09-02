@@ -789,3 +789,118 @@ select {
 .chat-send-btn {
   padding: 10px 16px;
 }
+
+/* ---------------- Agent kind switcher（创建方式：Prompt / A2A） ---------------- */
+.kind-switch {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.kind-switch-item {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.kind-switch-item:hover {
+  border-color: var(--ink-soft);
+}
+
+.kind-switch-item-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.kind-switch-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.kind-switch-item-active .kind-switch-icon {
+  color: var(--accent);
+}
+
+.kind-switch-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.kind-switch-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ---------------- A2A discover / preview ---------------- */
+.a2a-discover-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.a2a-discover-row .form-input {
+  flex: 1;
+}
+
+.a2a-preview {
+  margin-top: 12px;
+  border: 1px solid var(--success);
+  background: var(--success-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.a2a-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--success);
+  margin-bottom: 4px;
+}
+
+.a2a-preview-desc {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.a2a-preview-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.a2a-preview-skill {
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 2px 7px;
+  color: var(--ink-soft);
+}
+
+.a2a-preview-streaming {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.agent-card-kind-a2a .agent-card-icon {
+  color: var(--muted);
+}

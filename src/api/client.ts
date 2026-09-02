@@ -1,4 +1,4 @@
-import type { Agent, ChatMessage, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
+import type { A2AConfig, Agent, ChatMessage, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
 
@@ -96,7 +96,9 @@ export const api = {
   listAgents: (teamId: string) => request<{ agents: Agent[] }>(`/v1/teams/${teamId}/agents`),
   createAgent: (
     teamId: string,
-    payload: { name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] },
+    payload:
+      | { kind: 'AGENT_KIND_PROMPT'; name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] }
+      | { kind: 'AGENT_KIND_A2A'; name: string; a2aConfig: A2AConfig },
   ) =>
     request<{ agent: Agent }>(`/v1/teams/${teamId}/agents`, {
       method: 'POST',
@@ -104,12 +106,21 @@ export const api = {
     }),
   updateAgent: (
     id: string,
-    payload: { name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] },
+    payload:
+      | { name: string; prompt: string; model: string; mcpTools: string[]; skills: string[] }
+      | { name: string; a2aConfig: A2AConfig },
   ) =>
     request<{ agent: Agent }>(`/v1/agents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  // discoverA2AAgent 探测一个 A2A 外部 Agent 的连通性与展示信息（不产生持久化副作用），
+  // 供创建/保存 A2A Agent 前预览对端的名称/描述/技能/是否支持流式。
+  discoverA2AAgent: (payload: { endpointUrl: string; authScheme?: string; authToken?: string }) =>
+    request<{ remoteAgentName: string; remoteDescription: string; remoteSkills: string[]; streaming: boolean }>(
+      '/v1/a2a/discover',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
   listModelOptions: () => request<{ models: ModelOption[] }>('/v1/options/models'),
   listMcpToolOptions: () => request<{ tools: Option[] }>('/v1/options/mcp-tools'),
   listSkillOptions: () => request<{ skills: Option[] }>('/v1/options/skills'),

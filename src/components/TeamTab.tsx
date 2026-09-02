@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client'
 import type { Agent, Team } from '../types'
 import { AgentConfigModal } from './AgentConfigModal'
 import { CreateAgentModal } from './CreateAgentModal'
-import { IconAgent, IconChevronRight, IconPlus, IconTrash } from '../icons'
+import { IconAgent, IconChevronRight, IconLink, IconPlus, IconTrash } from '../icons'
 
 interface TeamTabProps {
   teamId: string | null
@@ -136,44 +136,67 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
         <div className="text-muted">加载中...</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {agents.map((agent) => (
-            <div className="agent-card" key={agent.id} onClick={() => setActiveAgentId(agent.id)}>
-              <div className="agent-card-icon">
-                <IconAgent size={22} />
-              </div>
-              <div className="agent-card-body">
-                <div className="agent-card-title">
-                  {agent.name}
-                  <span className="agent-card-badge">{agent.isMain ? '主 Agent' : '子 Agent'}</span>
+          {agents.map((agent) => {
+            const isA2A = agent.kind === 'AGENT_KIND_A2A'
+            return (
+              <div
+                className={`agent-card ${isA2A ? 'agent-card-kind-a2a' : ''}`}
+                key={agent.id}
+                onClick={() => setActiveAgentId(agent.id)}
+              >
+                <div className="agent-card-icon">{isA2A ? <IconLink size={22} /> : <IconAgent size={22} />}</div>
+                <div className="agent-card-body">
+                  <div className="agent-card-title">
+                    {agent.name}
+                    <span className="agent-card-badge">{agent.isMain ? '主 Agent' : '子 Agent'}</span>
+                    {isA2A && <span className="agent-card-badge">A2A</span>}
+                  </div>
+                  {isA2A ? (
+                    <>
+                      <div className="agent-card-prompt">
+                        {agent.a2aConfig?.remoteDescription || agent.a2aConfig?.endpointUrl}
+                      </div>
+                      <div className="agent-card-meta">
+                        <span>接入地址：{agent.a2aConfig?.endpointUrl}</span>
+                        <span>技能：{agent.a2aConfig?.remoteSkills?.length ?? 0}</span>
+                        <span className={`agent-status agent-status-${agent.status.toLowerCase()}`}>
+                          {STATUS_LABEL[agent.status] ?? agent.status}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="agent-card-prompt">{agent.prompt}</div>
+                      <div className="agent-card-meta">
+                        <span>模型：{agent.model}</span>
+                        <span>MCP 工具：{agent.mcpTools?.length ?? 0}</span>
+                        <span>Skill：{agent.skills?.length ?? 0}</span>
+                        <span className={`agent-status agent-status-${agent.status.toLowerCase()}`}>
+                          {STATUS_LABEL[agent.status] ?? agent.status}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="agent-card-prompt">{agent.prompt}</div>
-                <div className="agent-card-meta">
-                  <span>模型：{agent.model}</span>
-                  <span>MCP 工具：{agent.mcpTools?.length ?? 0}</span>
-                  <span>Skill：{agent.skills?.length ?? 0}</span>
-                  <span className={`agent-status agent-status-${agent.status.toLowerCase()}`}>
-                    {STATUS_LABEL[agent.status] ?? agent.status}
-                  </span>
+                {!agent.isMain && (
+                  <button
+                    className="modal-close"
+                    title="删除 Agent"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDeleteAgent(agent)
+                    }}
+                    disabled={deletingId === agent.id}
+                  >
+                    <IconTrash size={16} />
+                  </button>
+                )}
+                <div className="agent-card-arrow">
+                  <IconChevronRight size={18} />
                 </div>
               </div>
-              {!agent.isMain && (
-                <button
-                  className="modal-close"
-                  title="删除 Agent"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void handleDeleteAgent(agent)
-                  }}
-                  disabled={deletingId === agent.id}
-                >
-                  <IconTrash size={16} />
-                </button>
-              )}
-              <div className="agent-card-arrow">
-                <IconChevronRight size={18} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
