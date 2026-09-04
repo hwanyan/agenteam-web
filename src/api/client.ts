@@ -82,10 +82,18 @@ async function requestStream<T>(
 
 export const api = {
   // ---- Team ----
-  createTeam: (name: string) =>
+  // 团队创建时会一并创建主 Agent，因此支持与 createAgent 一致的两种创建方式：
+  //   - AGENT_KIND_PROMPT（默认，未传 kind 时按此方式处理）：prompt/model 留空则使用平台默认值；
+  //   - AGENT_KIND_A2A：主 Agent 直接链接一个外部 A2A Agent 提供方。
+  createTeam: (
+    name: string,
+    payload?:
+      | { kind: 'AGENT_KIND_PROMPT'; prompt?: string; model?: string; mcpTools?: string[]; skills?: string[] }
+      | { kind: 'AGENT_KIND_A2A'; a2aConfig: A2AConfig },
+  ) =>
     request<{ team: Team; mainAgent: Agent }>('/v1/teams', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...payload }),
     }),
   listTeams: () => request<{ teams: Team[] }>('/v1/teams'),
   getTeam: (id: string) => request<{ team: Team }>(`/v1/teams/${id}`),

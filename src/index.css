@@ -435,7 +435,8 @@ select {
 
 /* ---------------- Create team ---------------- */
 .create-team-card {
-  width: 440px;
+  width: 560px;
+  margin: 0 auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-top: 3px solid var(--accent);
