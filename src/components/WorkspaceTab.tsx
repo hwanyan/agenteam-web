@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ChatMessage } from '../types'
 import { IconAgent, IconSend, IconSettings, IconUser } from '../icons'
+import { Markdown } from './Markdown'
 
 interface WorkspaceTabProps {
   teamId: string
@@ -111,7 +112,9 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
             <div className="chat-msg-avatar">
               {m.role === 'MESSAGE_ROLE_USER' ? <IconUser size={15} /> : <IconAgent size={15} />}
             </div>
-            <div className="chat-msg-bubble">{m.content}</div>
+            <div className="chat-msg-bubble">
+              {m.role === 'MESSAGE_ROLE_USER' ? m.content : <Markdown content={m.content} />}
+            </div>
           </div>
         ))}
         {sending && (
@@ -121,7 +124,7 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
             </div>
             {streamingText ? (
               <div className="chat-msg-bubble">
-                {streamingText}
+                <Markdown content={streamingText} />
                 <span className="chat-msg-cursor" />
               </div>
             ) : (
