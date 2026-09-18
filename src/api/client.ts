@@ -1,4 +1,4 @@
-import type { A2AConfig, Agent, ChatMessage, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
+import type { A2AConfig, Agent, ChatMessage, McpTool, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
 
@@ -132,6 +132,15 @@ export const api = {
   listModelOptions: () => request<{ models: ModelOption[] }>('/v1/options/models'),
   listMcpToolOptions: () => request<{ tools: Option[] }>('/v1/options/mcp-tools'),
   listSkillOptions: () => request<{ skills: Option[] }>('/v1/options/skills'),
+  // createMcpTool 接入一个新的自定义 MCP 工具；成功后会与内置工具合并出现在
+  // listMcpToolOptions 的返回结果中。id 始终由服务端生成（形如
+  // "mcp_tool_<6位随机数字/字母>"），前端不提供指定 id 的入口；
+  // apiKey/timeoutSeconds 均非必填：timeoutSeconds 留空则默认 30 秒。
+  createMcpTool: (payload: { name: string; baseUrl: string; apiKey?: string; timeoutSeconds?: number }) =>
+    request<{ tool: McpTool }>('/v1/mcp-tools', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   deleteAgent: (id: string) => request<Record<string, never>>(`/v1/agents/${id}`, { method: 'DELETE' }),
 
   // ---- Workspace ----

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option } from '../types'
-import { IconClose, IconLink } from '../icons'
+import { IconClose, IconLink, IconPlus } from '../icons'
+import { CreateMcpToolModal } from './CreateMcpToolModal'
 
 interface AgentConfigModalProps {
   agentId: string
@@ -50,6 +51,8 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
   const [tenantId, setTenantId] = useState('')
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
   const [discovering, setDiscovering] = useState(false)
+
+  const [addToolModalOpen, setAddToolModalOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -199,7 +202,8 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
   const isA2A = kind === 'AGENT_KIND_A2A'
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <>
+      <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span>Agent 配置</span>
@@ -338,6 +342,10 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
                     </label>
                   ))}
                 </div>
+                <button className="btn" style={{ marginTop: 8 }} onClick={() => setAddToolModalOpen(true)}>
+                  <IconPlus size={14} />
+                  接入新的 MCP 工具
+                </button>
 
                 <label className="form-label">Skill</label>
                 <div className="option-grid">
@@ -367,6 +375,18 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
           </button>
         </div>
       </div>
-    </div>
+      </div>
+
+      {addToolModalOpen && (
+        <CreateMcpToolModal
+          onClose={() => setAddToolModalOpen(false)}
+          onCreated={(tool) => {
+            setToolOptions((prev) => [...prev, tool])
+            setMcpTools((prev) => [...prev, tool.id])
+            setAddToolModalOpen(false)
+          }}
+        />
+      )}
+    </>
   )
 }

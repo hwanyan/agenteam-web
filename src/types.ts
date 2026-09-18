@@ -91,3 +91,16 @@ export interface Option {
 export interface ModelOption extends Option {
   provider: string
 }
+
+// 用户自行接入的自定义 MCP 工具（区别于平台内置的静态清单，见 Option）。
+// apiKey 只在“创建”请求中由前端提交，服务端任何响应都不会回显明文，
+// 只会带上 apiKeySet 标记是否已配置。
+export interface McpTool {
+  id: string
+  name: string
+  baseUrl: string
+  apiKeySet: boolean
+  timeoutSeconds: number
+  createdAt: string
+  updatedAt: string
+}

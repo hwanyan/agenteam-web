@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option } from '../types'
-import { IconAgent, IconClose, IconLink } from '../icons'
+import { IconAgent, IconClose, IconLink, IconPlus } from '../icons'
+import { CreateMcpToolModal } from './CreateMcpToolModal'
 
 interface CreateAgentModalProps {
   teamId: string
@@ -40,6 +41,8 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
   const [tenantId, setTenantId] = useState('')
   const [discovering, setDiscovering] = useState(false)
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
+
+  const [addToolModalOpen, setAddToolModalOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -153,8 +156,9 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span>新增 Agent</span>
           <button className="modal-close" onClick={onClose}>
@@ -319,6 +323,10 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
                     </label>
                   ))}
                 </div>
+                <button className="btn" style={{ marginTop: 8 }} onClick={() => setAddToolModalOpen(true)}>
+                  <IconPlus size={14} />
+                  接入新的 MCP 工具
+                </button>
 
                 <label className="form-label">Skill</label>
                 <div className="option-grid">
@@ -347,7 +355,19 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
             {saving ? '创建中...' : '创建'}
           </button>
         </div>
+        </div>
       </div>
-    </div>
+
+      {addToolModalOpen && (
+        <CreateMcpToolModal
+          onClose={() => setAddToolModalOpen(false)}
+          onCreated={(tool) => {
+            setToolOptions((prev) => [...prev, tool])
+            setMcpTools((prev) => [...prev, tool.id])
+            setAddToolModalOpen(false)
+          }}
+        />
+      )}
+    </>
   )
 }
