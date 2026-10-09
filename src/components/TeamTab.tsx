@@ -3,7 +3,6 @@ import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option, Team } from '../types'
 import { AgentConfigModal } from './AgentConfigModal'
 import { CreateAgentModal } from './CreateAgentModal'
-import { CreateMcpToolModal } from './CreateMcpToolModal'
 import { IconAgent, IconChevronRight, IconLink, IconPlus, IconTrash } from '../icons'
 
 interface TeamTabProps {
@@ -52,8 +51,6 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
   const [tenantId, setTenantId] = useState('')
   const [discovering, setDiscovering] = useState(false)
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
-
-  const [addToolModalOpen, setAddToolModalOpen] = useState(false)
 
   const [team, setTeam] = useState<Team | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -378,10 +375,9 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
                   </label>
                 ))}
               </div>
-              <button className="btn" style={{ marginTop: 8 }} onClick={() => setAddToolModalOpen(true)}>
-                <IconPlus size={14} />
-                接入新的 MCP 工具
-              </button>
+              <div className="form-hint">
+                自定义 MCP 工具按团队隔离，需先创建团队后，在团队详情页的 Agent 配置中接入。
+              </div>
 
               <label className="form-label">Skill</label>
               <div className="option-grid">
@@ -405,17 +401,6 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
             {creating ? '创建中...' : '创建团队'}
           </button>
         </div>
-
-        {addToolModalOpen && (
-          <CreateMcpToolModal
-            onClose={() => setAddToolModalOpen(false)}
-            onCreated={(tool) => {
-              setToolOptions((prev) => [...prev, tool])
-              setMcpTools((prev) => [...prev, tool.id])
-              setAddToolModalOpen(false)
-            }}
-          />
-        )}
       </div>
     )
   }

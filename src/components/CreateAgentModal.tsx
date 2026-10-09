@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option } from '../types'
-import { IconAgent, IconClose, IconLink, IconPlus } from '../icons'
+import { IconAgent, IconClose, IconLink, IconPlus, IconSettings } from '../icons'
 import { CreateMcpToolModal } from './CreateMcpToolModal'
 
 interface CreateAgentModalProps {
@@ -43,12 +43,13 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
   const [a2aPreview, setA2aPreview] = useState<A2APreview | null>(null)
 
   const [addToolModalOpen, setAddToolModalOpen] = useState(false)
+  const [editToolId, setEditToolId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.all([api.listModelOptions(), api.listMcpToolOptions(), api.listSkillOptions()])
+    Promise.all([api.listModelOptions(), api.listMcpToolOptions(teamId), api.listSkillOptions()])
       .then(([modelsRes, toolsRes, skillsRes]) => {
         if (cancelled) return
         setModelOptions(modelsRes.models ?? [])
@@ -320,6 +321,20 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
                       />
                       <span className="option-chip-name">{t.name}</span>
                       <span className="option-chip-desc">{t.description}</span>
+                      {t.isCustom && (
+                        <button
+                          type="button"
+                          className="option-chip-edit"
+                          title="编辑该 MCP 工具"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setEditToolId(t.id)
+                          }}
+                        >
+                          <IconSettings size={13} />
+                        </button>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -360,11 +375,23 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
 
       {addToolModalOpen && (
         <CreateMcpToolModal
+          teamId={teamId}
           onClose={() => setAddToolModalOpen(false)}
-          onCreated={(tool) => {
+          onSaved={(tool) => {
             setToolOptions((prev) => [...prev, tool])
             setMcpTools((prev) => [...prev, tool.id])
             setAddToolModalOpen(false)
+          }}
+        />
+      )}
+
+      {editToolId && (
+        <CreateMcpToolModal
+          editId={editToolId}
+          onClose={() => setEditToolId(null)}
+          onSaved={(tool) => {
+            setToolOptions((prev) => prev.map((t) => (t.id === tool.id ? tool : t)))
+            setEditToolId(null)
           }}
         />
       )}

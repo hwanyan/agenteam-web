@@ -130,15 +130,27 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) },
     ),
   listModelOptions: () => request<{ models: ModelOption[] }>('/v1/options/models'),
-  listMcpToolOptions: () => request<{ tools: Option[] }>('/v1/options/mcp-tools'),
+  // listMcpToolOptions 返回可选的 MCP 工具清单：平台内置静态清单 + 指定团队自行接入的
+  // 自定义工具（按团队隔离，不同团队互不可见）。teamId 留空时（如"新增团队"表单场景，
+  // 团队尚未创建）只返回内置静态清单。
+  listMcpToolOptions: (teamId?: string) =>
+    request<{ tools: Option[] }>(`/v1/options/mcp-tools${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`),
   listSkillOptions: () => request<{ skills: Option[] }>('/v1/options/skills'),
-  // createMcpTool 接入一个新的自定义 MCP 工具；成功后会与内置工具合并出现在
-  // listMcpToolOptions 的返回结果中。id 始终由服务端生成（形如
-  // "mcp_tool_<6位随机数字/字母>"），前端不提供指定 id 的入口；
+  // createMcpTool 在指定团队下接入一个新的自定义 MCP 工具；成功后会与内置工具合并
+  // 出现在该团队的 listMcpToolOptions 返回结果中，仅供该团队的 Agent 选择绑定。
+  // id 始终由服务端生成（形如 "mcp_tool_<6位随机数字/字母>"），前端不提供指定 id 的入口；
   // apiKey/timeoutSeconds 均非必填：timeoutSeconds 留空则默认 30 秒。
-  createMcpTool: (payload: { name: string; baseUrl: string; apiKey?: string; timeoutSeconds?: number }) =>
-    request<{ tool: McpTool }>('/v1/mcp-tools', {
+  createMcpTool: (teamId: string, payload: { name: string; baseUrl: string; apiKey?: string; timeoutSeconds?: number }) =>
+    request<{ tool: McpTool }>(`/v1/teams/${teamId}/mcp-tools`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  // getMcpTool 查询单个自定义 MCP 工具详情，供编辑表单回填（apiKey 不回显明文）。
+  getMcpTool: (id: string) => request<{ tool: McpTool }>(`/v1/mcp-tools/${id}`),
+  // updateMcpTool 更新一个自定义 MCP 工具的配置；apiKey 留空表示不修改现有密钥，非空则覆盖。
+  updateMcpTool: (id: string, payload: { name: string; baseUrl: string; apiKey?: string; timeoutSeconds?: number }) =>
+    request<{ tool: McpTool }>(`/v1/mcp-tools/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     }),
   deleteAgent: (id: string) => request<Record<string, never>>(`/v1/agents/${id}`, { method: 'DELETE' }),

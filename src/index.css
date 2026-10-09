@@ -676,6 +676,25 @@ select {
   white-space: nowrap;
 }
 
+.option-chip-edit {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.option-chip-edit:hover {
+  color: var(--ink);
+  background: var(--paper);
+}
+
 /* ---------------- Workspace / chat ---------------- */
 .page-workspace {
   padding-bottom: 16px;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option } from '../types'
-import { IconClose, IconLink, IconPlus } from '../icons'
+import { IconClose, IconLink, IconPlus, IconSettings } from '../icons'
 import { CreateMcpToolModal } from './CreateMcpToolModal'
 
 interface AgentConfigModalProps {
@@ -53,20 +53,20 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
   const [discovering, setDiscovering] = useState(false)
 
   const [addToolModalOpen, setAddToolModalOpen] = useState(false)
+  const [editToolId, setEditToolId] = useState<string | null>(null)
+  // Agent 所属团队 id：由 getAgent 响应回填，用于新增自定义 MCP 工具时指定归属团队。
+  const [teamId, setTeamId] = useState('')
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.all([
-      api.getAgent(agentId),
-      api.listModelOptions(),
-      api.listMcpToolOptions(),
-      api.listSkillOptions(),
-    ])
-      .then(([agentRes, modelsRes, toolsRes, skillsRes]) => {
+    api
+      .getAgent(agentId)
+      .then((agentRes) => {
         if (cancelled) return
         const agent = agentRes.agent
+        setTeamId(agent.teamId)
         setKind(agent.kind)
         setName(agent.name)
         setStatus(agent.status)
@@ -90,6 +90,11 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
           setMcpTools(agent.mcpTools ?? [])
           setSkills(agent.skills ?? [])
         }
+        return Promise.all([api.listModelOptions(), api.listMcpToolOptions(agent.teamId), api.listSkillOptions()])
+      })
+      .then((result) => {
+        if (cancelled || !result) return
+        const [modelsRes, toolsRes, skillsRes] = result
         setModelOptions(modelsRes.models ?? [])
         setToolOptions(toolsRes.tools ?? [])
         setSkillOptions(skillsRes.skills ?? [])
@@ -339,6 +344,20 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
                       />
                       <span className="option-chip-name">{t.name}</span>
                       <span className="option-chip-desc">{t.description}</span>
+                      {t.isCustom && (
+                        <button
+                          type="button"
+                          className="option-chip-edit"
+                          title="编辑该 MCP 工具"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setEditToolId(t.id)
+                          }}
+                        >
+                          <IconSettings size={13} />
+                        </button>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -379,11 +398,23 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
 
       {addToolModalOpen && (
         <CreateMcpToolModal
+          teamId={teamId}
           onClose={() => setAddToolModalOpen(false)}
-          onCreated={(tool) => {
+          onSaved={(tool) => {
             setToolOptions((prev) => [...prev, tool])
             setMcpTools((prev) => [...prev, tool.id])
             setAddToolModalOpen(false)
+          }}
+        />
+      )}
+
+      {editToolId && (
+        <CreateMcpToolModal
+          editId={editToolId}
+          onClose={() => setEditToolId(null)}
+          onSaved={(tool) => {
+            setToolOptions((prev) => prev.map((t) => (t.id === tool.id ? tool : t)))
+            setEditToolId(null)
           }}
         />
       )}

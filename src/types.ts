@@ -86,17 +86,21 @@ export interface Option {
   id: string
   name: string
   description: string
+  // 是否为某个团队自行接入的自定义 MCP 工具（true），区别于平台内置静态清单（false/undefined）。
+  // 仅 listMcpToolOptions 会返回 true 的情形；前端据此为自定义工具渲染"编辑"入口。
+  isCustom?: boolean
 }
 
 export interface ModelOption extends Option {
   provider: string
 }
 
-// 用户自行接入的自定义 MCP 工具（区别于平台内置的静态清单，见 Option）。
-// apiKey 只在“创建”请求中由前端提交，服务端任何响应都不会回显明文，
-// 只会带上 apiKeySet 标记是否已配置。
+// 某个团队自行接入的自定义 MCP 工具（区别于平台内置的静态清单，见 Option）。
+// 按团队隔离，仅归属团队可见可选；apiKey 只在“创建/更新”请求中由前端提交，
+// 服务端任何响应都不会回显明文，只会带上 apiKeySet 标记是否已配置。
 export interface McpTool {
   id: string
+  teamId: string
   name: string
   baseUrl: string
   apiKeySet: boolean
