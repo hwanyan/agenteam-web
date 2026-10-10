@@ -14,15 +14,21 @@ interface CreateMcpToolModalProps {
   // 用户在"成功提示"弹窗中点击确定后回调，返回可直接并入 MCP 工具选择列表的 Option
   // （description 展示 base_url）。调用方在此回调里更新列表并关闭本弹窗即可。
   onSaved: (tool: Option) => void
+  // 编辑模式下删除成功、用户点击"确定"后回调，传入被删除工具的 id。
+  // 调用方应把它从工具选择列表和当前已勾选的工具里移除，并关闭本弹窗。
+  onDeleted?: (id: string) => void
 }
 
-// CreateMcpToolModal 用于接入一个新的自定义 MCP 工具，或编辑一个已接入的自定义 MCP 工具，
+// 操作成功后的结果，用于展示对应的"成功提示"弹窗。
+type Result = { kind: 'saved'; tool: Option } | { kind: 'deleted'; id: string; name: string; affectedAgents: number }
+
+// CreateMcpToolModal 用于接入一个新的自定义 MCP 工具，或编辑 / 删除一个已接入的自定义 MCP 工具，
 // 供「新增 Agent」「Agent 配置」两处的 MCP 工具选择列表复用
 // （列表下方的「接入新的 MCP 工具」按钮打开新增模式；自定义工具旁的编辑图标打开编辑模式）。
 //
-// 保存成功后，表单弹窗会被"成功提示"弹窗取代（表单随之关闭），用户点击"确定"后才通知调用方，
-// 避免保存后界面毫无反馈、用户不确定是否录入成功。
-export function CreateMcpToolModal({ teamId, editId, onClose, onSaved }: CreateMcpToolModalProps) {
+// 保存 / 删除成功后，表单弹窗会被"成功提示"弹窗取代（表单随之关闭），用户点击"确定"后才通知调用方，
+// 避免操作后界面毫无反馈、用户不确定是否成功。
+export function CreateMcpToolModal({ teamId, editId, onClose, onSaved, onDeleted }: CreateMcpToolModalProps) {
   const isEdit = Boolean(editId)
   const [loading, setLoading] = useState(isEdit)
   const [name, setName] = useState('')
@@ -35,8 +41,9 @@ export function CreateMcpToolModal({ teamId, editId, onClose, onSaved }: CreateM
   // 字段级校验提示：名称 / Base URL 为必填项
   const [nameError, setNameError] = useState<string | null>(null)
   const [baseUrlError, setBaseUrlError] = useState<string | null>(null)
-  // 保存成功后的结果；非空时展示"成功提示"弹窗
-  const [savedTool, setSavedTool] = useState<Option | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  // 保存 / 删除成功后的结果；非空时展示"成功提示"弹窗
+  const [result, setResult] = useState<Result | null>(null)
 
   useEffect(() => {
     if (!editId) return
@@ -83,7 +90,10 @@ export function CreateMcpToolModal({ teamId, editId, onClose, onSaved }: CreateM
         timeoutSeconds: timeoutSeconds.trim() ? Number(timeoutSeconds) : undefined,
       }
       const res = isEdit ? await api.updateMcpTool(editId as string, payload) : await api.createMcpTool(teamId as string, payload)
-      setSavedTool({ id: res.tool.id, name: res.tool.name, description: res.tool.baseUrl, isCustom: true })
+      setResult({
+        kind: 'saved',
+        tool: { id: res.tool.id, name: res.tool.name, description: res.tool.baseUrl, isCustom: true },
+      })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : isEdit ? '保存失败，请重试' : '接入失败，请重试')
     } finally {
@@ -91,24 +101,47 @@ export function CreateMcpToolModal({ teamId, editId, onClose, onSaved }: CreateM
     }
   }
 
-  if (savedTool) {
+  async function handleDelete() {
+    if (!editId) return
+    const label = name.trim() || editId
+    if (!window.confirm(`确认删除 MCP 工具「${label}」吗？\n删除后，团队内所有已绑定它的 Agent 也会同步移除该工具，此操作不可恢复。`)) return
+    setDeleting(true)
+    setError(null)
+    try {
+      const res = await api.deleteMcpTool(editId)
+      setResult({ kind: 'deleted', id: editId, name: label, affectedAgents: res.affectedAgents ?? 0 })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '删除失败，请重试')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (result) {
+    const confirm = () => (result.kind === 'saved' ? onSaved(result.tool) : onDeleted?.(result.id))
+    const title = result.kind === 'deleted' ? 'MCP 工具已删除' : isEdit ? 'MCP 工具保存成功' : '新增 MCP 工具成功'
+    const name = result.kind === 'saved' ? result.tool.name : result.name
+    const desc =
+      result.kind === 'deleted'
+        ? `「${name}」已删除${result.affectedAgents > 0 ? `，并已从 ${result.affectedAgents} 个 Agent 的配置中移除` : ''}`
+        : `「${name}」${isEdit ? '的配置已更新' : '已接入'}`
     return (
-      <div className="modal-overlay" onClick={() => onSaved(savedTool)}>
+      <div className="modal-overlay" onClick={confirm}>
         <div className="success-dialog" onClick={(e) => e.stopPropagation()}>
           <div className="success-dialog-icon">
             <IconCheck size={22} />
           </div>
-          <div className="success-dialog-title">{isEdit ? 'MCP 工具保存成功' : '新增 MCP 工具成功'}</div>
-          <div className="success-dialog-desc">
-            「{savedTool.name}」{isEdit ? '的配置已更新' : '已接入'}
-          </div>
-          <button className="btn btn-primary btn-block" autoFocus onClick={() => onSaved(savedTool)}>
+          <div className="success-dialog-title">{title}</div>
+          <div className="success-dialog-desc">{desc}</div>
+          <button className="btn btn-primary btn-block" autoFocus onClick={confirm}>
             确定
           </button>
         </div>
       </div>
     )
   }
+
+  const busy = saving || deleting
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -184,10 +217,20 @@ export function CreateMcpToolModal({ teamId, editId, onClose, onSaved }: CreateM
           </div>
         )}
         <div className="modal-footer">
-          <button className="btn" onClick={onClose} disabled={saving}>
+          {isEdit && (
+            <button
+              className="btn btn-danger"
+              style={{ marginRight: 'auto' }}
+              onClick={handleDelete}
+              disabled={loading || busy}
+            >
+              {deleting ? '删除中...' : '删除'}
+            </button>
+          )}
+          <button className="btn" onClick={onClose} disabled={busy}>
             取消
           </button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading || saving}>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading || busy}>
             {saving ? '保存中...' : isEdit ? '保存' : '接入'}
           </button>
         </div>

@@ -153,6 +153,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  // deleteMcpTool 删除一个自定义 MCP 工具；服务端会同步清理所属团队下所有 Agent 对它的绑定引用，
+  // affectedAgents 为被清理了引用的 Agent 数量（为 0 时 grpc-gateway 会省略该字段）。
+  deleteMcpTool: (id: string) => request<{ affectedAgents?: number }>(`/v1/mcp-tools/${id}`, { method: 'DELETE' }),
   deleteAgent: (id: string) => request<Record<string, never>>(`/v1/agents/${id}`, { method: 'DELETE' }),
 
   // ---- Workspace ----

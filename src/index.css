@@ -288,6 +288,15 @@ select {
   line-height: 1.6;
 }
 
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
 /* 必填项标记与字段级校验提示 */
 .form-label-required {
   color: var(--danger);

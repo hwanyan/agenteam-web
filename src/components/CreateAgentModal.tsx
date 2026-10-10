@@ -393,6 +393,11 @@ export function CreateAgentModal({ teamId, onClose, onCreated }: CreateAgentModa
             setToolOptions((prev) => prev.map((t) => (t.id === tool.id ? tool : t)))
             setEditToolId(null)
           }}
+          onDeleted={(id) => {
+            setToolOptions((prev) => prev.filter((t) => t.id !== id))
+            setMcpTools((prev) => prev.filter((x) => x !== id))
+            setEditToolId(null)
+          }}
         />
       )}
     </>
