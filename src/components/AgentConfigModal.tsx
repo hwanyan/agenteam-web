@@ -98,6 +98,14 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
         setModelOptions(modelsRes.models ?? [])
         setToolOptions(toolsRes.tools ?? [])
         setSkillOptions(skillsRes.skills ?? [])
+        // Agent 配置里记录的工具 / Skill 只是 id 列表，和可选项之间没有外键联动：工具被删除后，
+        // 其 id 可能仍残留在配置里。这类失效 id 不在可选项里，界面上既看不到、也取消勾选不了，
+        // 但保存时会被一并提交，后端校验（"不支持的 MCP 工具"）就会拒绝并把 Agent 置为"加载失败"，
+        // 用户无法自行恢复。这里在拿到可选项后把不存在的 id 剔除，保存时就不会再带上它们。
+        const toolIds = new Set((toolsRes.tools ?? []).map((t) => t.id))
+        const skillIds = new Set((skillsRes.skills ?? []).map((s) => s.id))
+        setMcpTools((prev) => prev.filter((id) => toolIds.has(id)))
+        setSkills((prev) => prev.filter((id) => skillIds.has(id)))
       })
       .catch((err: unknown) => {
         if (cancelled) return

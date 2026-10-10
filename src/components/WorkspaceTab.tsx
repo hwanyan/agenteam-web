@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, ToolCallInfo } from '../types'
 import { IconAgent, IconSend, IconSettings, IconUser } from '../icons'
+import { mergeToolCall, ReasoningBlock, ToolCallList } from './ChatExtras'
 import { Markdown } from './Markdown'
 
 interface WorkspaceTabProps {
@@ -19,6 +20,9 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
   // streamingText 是当前正在流式接收、尚未持久化完成的 Agent 回复增量文本；
   // 为空字符串时表示还未收到任何 delta（此时仍展示“思考中...”）。
   const [streamingText, setStreamingText] = useState('')
+  // 流式过程中累积的思考过程与工具调用；最终以 done 分片里的完整消息为准。
+  const [streamingReasoning, setStreamingReasoning] = useState('')
+  const [streamingTools, setStreamingTools] = useState<ToolCallInfo[]>([])
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -44,7 +48,7 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
-  }, [messages, streamingText])
+  }, [messages, streamingText, streamingReasoning, streamingTools])
 
   // 组件卸载或切换团队时，中断尚未结束的流式请求，避免回调写入已失效的状态。
   useEffect(() => {
@@ -58,6 +62,8 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
     setError(null)
     setInput('')
     setStreamingText('')
+    setStreamingReasoning('')
+    setStreamingTools([])
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -73,9 +79,17 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
           if (chunk.delta) {
             setStreamingText((prev) => prev + chunk.delta)
           }
+          if (chunk.reasoningDelta) {
+            setStreamingReasoning((prev) => prev + chunk.reasoningDelta)
+          }
+          if (chunk.toolCall) {
+            setStreamingTools((prev) => mergeToolCall(prev, chunk.toolCall as ToolCallInfo))
+          }
           if (chunk.done && chunk.agentMessage) {
             setMessages((prev) => [...prev, chunk.agentMessage as ChatMessage])
             setStreamingText('')
+            setStreamingReasoning('')
+            setStreamingTools([])
           }
         },
         controller.signal,
@@ -87,6 +101,8 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
       }
     } finally {
       setStreamingText('')
+      setStreamingReasoning('')
+      setStreamingTools([])
       setSending(false)
       abortRef.current = null
     }
@@ -107,29 +123,44 @@ export function WorkspaceTab({ teamId, teamName, onOpenTeamConfig }: WorkspaceTa
         {!loading && messages.length === 0 && (
           <div className="text-muted">还没有对话，输入内容开始和团队主 Agent 交流吧～</div>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className={`chat-msg ${m.role === 'MESSAGE_ROLE_USER' ? 'chat-msg-user' : 'chat-msg-agent'}`}>
-            <div className="chat-msg-avatar">
-              {m.role === 'MESSAGE_ROLE_USER' ? <IconUser size={15} /> : <IconAgent size={15} />}
+        {messages.map((m) => {
+          const isUser = m.role === 'MESSAGE_ROLE_USER'
+          return (
+            <div key={m.id} className={`chat-msg ${isUser ? 'chat-msg-user' : 'chat-msg-agent'}`}>
+              <div className="chat-msg-avatar">{isUser ? <IconUser size={15} /> : <IconAgent size={15} />}</div>
+              <div className="chat-msg-main">
+                <div className="chat-msg-bubble">
+                  {isUser ? (
+                    m.content
+                  ) : (
+                    <>
+                      {m.reasoning && <ReasoningBlock text={m.reasoning} />}
+                      <Markdown content={m.content} />
+                    </>
+                  )}
+                </div>
+                {!isUser && <ToolCallList calls={m.toolCalls ?? []} />}
+              </div>
             </div>
-            <div className="chat-msg-bubble">
-              {m.role === 'MESSAGE_ROLE_USER' ? m.content : <Markdown content={m.content} />}
-            </div>
-          </div>
-        ))}
+          )
+        })}
         {sending && (
           <div className="chat-msg chat-msg-agent">
             <div className="chat-msg-avatar">
               <IconAgent size={15} />
             </div>
-            {streamingText ? (
-              <div className="chat-msg-bubble">
-                <Markdown content={streamingText} />
-                <span className="chat-msg-cursor" />
-              </div>
-            ) : (
-              <div className="chat-msg-bubble chat-msg-loading">思考中...</div>
-            )}
+            <div className="chat-msg-main">
+              {streamingText || streamingReasoning ? (
+                <div className="chat-msg-bubble">
+                  {streamingReasoning && <ReasoningBlock text={streamingReasoning} streaming={!streamingText} />}
+                  {streamingText && <Markdown content={streamingText} />}
+                  {streamingText && <span className="chat-msg-cursor" />}
+                </div>
+              ) : (
+                <div className="chat-msg-bubble chat-msg-loading">思考中...</div>
+              )}
+              <ToolCallList calls={streamingTools} />
+            </div>
           </div>
         )}
       </div>

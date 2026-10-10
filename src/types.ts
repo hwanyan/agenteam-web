@@ -62,6 +62,19 @@ export interface Team {
   updatedAt: string
 }
 
+// 一次工具调用的展示信息，用于在回复下方展示"这条回复过程中调用了哪个工具"。
+export interface ToolCallInfo {
+  // 同一条回复内唯一；流式过程中据此把 running 更新为 done / error
+  id: string
+  // 面向用户的展示名称
+  name: string
+  // "agent"：团队主 Agent 把请求委派给了某个子 Agent；"tool"：Agent 在处理过程中调用的工具
+  kind: 'agent' | 'tool' | string
+  // 入参（JSON 字符串，可能被截断）；可能为空
+  arguments?: string
+  status: 'running' | 'done' | 'error' | string
+}
+
 export interface ChatMessage {
   id: string
   teamId: string
@@ -69,14 +82,21 @@ export interface ChatMessage {
   role: MessageRole
   content: string
   createdAt: string
+  // 模型的思考过程（如 DeepSeek Reasoner 返回的 reasoning_content）；模型不提供时为空
+  reasoning?: string
+  // 生成这条回复的过程中发生的工具调用，按发生顺序排列
+  toolCalls?: ToolCallInfo[]
 }
 
 // SendMessageStream 流式响应的单个分片：
 // - 第一条只携带 userMessage（不含 delta）；
-// - 中间每条携带一段增量文本 delta；
-// - 最后一条 done=true，并携带完整的 agentMessage。
+// - 中间每条携带一段增量文本 delta，或一段思考过程 reasoningDelta，或一次工具调用状态 toolCall；
+// - 同一个工具调用 id 会先以 running 出现，结束后再以 done / error 出现一次，按 id 合并即可；
+// - 最后一条 done=true，并携带完整的 agentMessage（含最终的思考过程与工具调用）。
 export interface SendMessageStreamChunk {
   delta?: string
+  reasoningDelta?: string
+  toolCall?: ToolCallInfo
   done?: boolean
   userMessage?: ChatMessage
   agentMessage?: ChatMessage
