@@ -1,6 +1,9 @@
 import type { A2AConfig, Agent, ChatMessage, McpTool, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
+import { getToken, notifyUnauthorized } from './auth'
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
+// 默认空串：请求走当前页面同源的相对路径（开发时由 vite proxy 转发到后端，生产经 nginx 反代，
+// 后端因此无需处理 CORS）。生产构建通过 .env.production 设为 /api/agenteam。
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
 export class ApiError extends Error {
   status: number
@@ -10,14 +13,22 @@ export class ApiError extends Error {
   }
 }
 
+function buildHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: buildHeaders(),
   })
   const text = await resp.text()
   const data = text ? JSON.parse(text) : {}
   if (!resp.ok) {
+    if (resp.status === 401) notifyUnauthorized()
     // grpc-gateway 的错误响应形如 { code, message, details }
     const message = (data && (data.message as string)) || `请求失败（${resp.status}）`
     throw new ApiError(message, resp.status)
@@ -34,10 +45,11 @@ async function requestStream<T>(
   onChunk: (chunk: T) => void,
 ): Promise<void> {
   const resp = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: buildHeaders(),
   })
   if (!resp.ok || !resp.body) {
+    if (resp.status === 401) notifyUnauthorized()
     let message = `请求失败（${resp.status}）`
     try {
       const data = JSON.parse(await resp.text())

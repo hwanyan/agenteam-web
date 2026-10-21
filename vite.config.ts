@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const BACKEND = 'http://localhost:8087'
+// 本地后端地址，需与后端 AGENTEAM_HTTP_ADDR 一致（默认 :8080）。
+const BACKEND = 'http://localhost:8080'
 
 export default defineConfig({
   // 部署在 https://xxx/agenteam/ 子路径下，必须设置 base，

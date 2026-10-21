@@ -1,12 +1,28 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { TabsBar } from './components/TabsBar'
 import { TeamTab } from './components/TeamTab'
 import { WorkspaceTab } from './components/WorkspaceTab'
+import { LoginGate } from './components/LoginGate'
 import { useAppState } from './state/useAppState'
+import { getToken, UNAUTHORIZED_EVENT } from './api/auth'
 import { IconMark } from './icons'
 
+// 登录门：无 token 或后端返回 401 时展示登录页；登录成功后才挂载主界面（避免未登录就发请求）。
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!getToken())
+
+  useEffect(() => {
+    const onUnauthorized = () => setAuthed(false)
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+  }, [])
+
+  if (!authed) return <LoginGate onLogin={() => setAuthed(true)} />
+  return <AuthedApp />
+}
+
+function AuthedApp() {
   const {
     teams,
     teamsLoading,

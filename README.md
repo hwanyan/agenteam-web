@@ -28,7 +28,11 @@ npm install
 npm run dev
 ```
 
-默认访问 `http://localhost:5173`，接口默认请求 `http://localhost:8080`
-（可通过 `.env.local` 中的 `VITE_API_BASE_URL` 覆盖）。
+默认访问 `http://localhost:5173`。接口请求使用同源相对路径（如 `/v1/teams`），
+由 `vite.config.ts` 的 `proxy` 转发到 `http://localhost:8080`，因此浏览器侧不存在跨域，
+后端也无需配置 CORS。后端端口变化时请同步修改 `vite.config.ts` 里的 `BACKEND`。
 
-请确保后端服务（见 `agenteam` 后端仓库 README）已启动。
+生产构建使用 `.env.production` 中的 `VITE_API_BASE_URL=/api/agenteam`，由 nginx 反代到后端，同样是同源。
+
+请确保后端服务（见 `agenteam` 后端仓库 README）已启动，并设置了 `AGENTEAM_AUTH_TOKENS`
+（必填）；打开页面后在登录页输入同一个 token。
