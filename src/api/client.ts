@@ -1,5 +1,5 @@
 import type { A2AConfig, Agent, ChatMessage, McpTool, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
-import { getToken, notifyUnauthorized } from './auth'
+import { clearSession, getSession, setSession, type AuthUser } from '../auth/session'
 
 // 默认空串：请求走当前页面同源的相对路径（开发时由 vite proxy 转发到后端，生产经 nginx 反代，
 // 后端因此无需处理 CORS）。生产构建通过 .env.production 设为 /api/agenteam。
@@ -13,22 +13,98 @@ export class ApiError extends Error {
   }
 }
 
-function buildHeaders(): Record<string, string> {
+// 登录 / 注册 / 发验证码 / 刷新 / 登出接口的路径前缀。这些接口的 401 表示「账号、验证码或刷新令牌无效」之类的业务失败，
+// 不代表当前登录态需要刷新，因此既不触发自动刷新，也不触发自动退出。
+const AUTH_PATH_PREFIX = '/v1/auth:'
+
+function buildHeaders(token: string | null): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
 }
 
+// ---- Access Token 自动刷新 ----
+//
+// Access Token 很短（默认 15 分钟），过期后业务接口返回 401。此时用 Refresh Token 换一对新令牌并重试原请求，
+// 用户无感知；只有刷新也失败（Refresh Token 过期 / 被吊销 / 被禁用）才回到登录页。
+//
+// 两层互斥，缺一不可：
+//   1. 同一标签页内，多个并发请求同时 401，只发一次刷新（inflightRefresh 合并）；
+//   2. 多个标签页之间，用 Web Locks 串行化，并在拿到锁后先看 localStorage 里的 token 是否已被其它标签页换新。
+// Refresh Token 每次使用都会轮换，两个标签页拿同一个旧的 Refresh Token 去刷新，后到者会被服务端当成重放，
+// 整条登录链路被吊销、用户被迫重新登录——这正是需要互斥的原因。
+let inflightRefresh: Promise<boolean> | null = null
+
+function refreshSession(usedToken: string | null): Promise<boolean> {
+  if (!inflightRefresh) {
+    inflightRefresh = runExclusive(() => doRefresh(usedToken)).finally(() => {
+      inflightRefresh = null
+    })
+  }
+  return inflightRefresh
+}
+
+async function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return await navigator.locks.request('agenteam-auth-refresh', fn)
+  }
+  return fn()
+}
+
+async function doRefresh(usedToken: string | null): Promise<boolean> {
+  const cur = getSession()
+  if (!cur.refreshToken) return false
+  // 等锁期间别的标签页（或别的请求）已经换过新 token：直接用它重试，不要再拿旧 Refresh Token 去刷新
+  if (usedToken && cur.token && cur.token !== usedToken) return true
+
+  try {
+    const resp = await fetch(`${BASE_URL}${AUTH_PATH_PREFIX}refresh`, {
+      method: 'POST',
+      headers: buildHeaders(null),
+      body: JSON.stringify({ refreshToken: cur.refreshToken }),
+    })
+    if (resp.ok) {
+      const data = (await resp.json()) as { token: string; refreshToken: string; user: AuthUser }
+      setSession(data.token, data.refreshToken, data.user)
+      return true
+    }
+    // 401/403：Refresh Token 已失效或账号被禁用，登录态无法挽回
+    if (resp.status === 401 || resp.status === 403) clearSession()
+    // 其它（如 503 认证服务暂不可用）：保留登录态，下次请求再试，避免服务抖动把用户踢下线
+    return false
+  } catch {
+    return false // 网络错误：同上，保留登录态
+  }
+}
+
+// authedFetch 发起带登录态的请求；遇到 401 时刷新令牌并重试一次。
+// 401 发生在服务端处理之前（鉴权层），因此重试不会造成非幂等请求被重复执行。
+async function authedFetch(path: string, init: RequestInit): Promise<Response> {
+  const send = (token: string | null) =>
+    fetch(`${BASE_URL}${path}`, { ...init, headers: buildHeaders(token) })
+
+  const usedToken = getSession().token
+  let resp = await send(usedToken)
+  if (resp.status !== 401 || path.startsWith(AUTH_PATH_PREFIX)) return resp
+
+  if (await refreshSession(usedToken)) {
+    resp = await send(getSession().token)
+    // 换了新令牌仍然 401：登录态确实无效
+    if (resp.status === 401) clearSession()
+  }
+  return resp
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: buildHeaders(),
-  })
+  const resp = await authedFetch(path, init ?? {})
   const text = await resp.text()
-  const data = text ? JSON.parse(text) : {}
+  let data: Record<string, unknown> = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    // 非 JSON 响应（如网关层返回的 HTML 错误页）：按下面的状态码分支处理
+  }
   if (!resp.ok) {
-    if (resp.status === 401) notifyUnauthorized()
     // grpc-gateway 的错误响应形如 { code, message, details }
     const message = (data && (data.message as string)) || `请求失败（${resp.status}）`
     throw new ApiError(message, resp.status)
@@ -44,12 +120,8 @@ async function requestStream<T>(
   init: RequestInit & { signal?: AbortSignal },
   onChunk: (chunk: T) => void,
 ): Promise<void> {
-  const resp = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: buildHeaders(),
-  })
+  const resp = await authedFetch(path, init)
   if (!resp.ok || !resp.body) {
-    if (resp.status === 401) notifyUnauthorized()
     let message = `请求失败（${resp.status}）`
     try {
       const data = JSON.parse(await resp.text())
@@ -92,7 +164,28 @@ async function requestStream<T>(
   }
 }
 
+export interface AuthResult {
+  token: string // Access Token
+  refreshToken: string
+  expiresIn: number // Access Token 有效期（秒）
+  user: AuthUser
+}
+
 export const api = {
+  // ---- Auth（登录 / 注册由后端代理到 hwan 认证服务）----
+  // purpose：register（注册，默认）/ reset_password
+  sendVerifyCode: (email: string, purpose: 'register' | 'reset_password' = 'register') =>
+    request<{ message: string }>('/v1/auth:sendVerifyCode', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    }),
+  register: (payload: { username: string; email: string; password: string; nickname?: string; verifyCode: string }) =>
+    request<AuthResult>('/v1/auth:register', { method: 'POST', body: JSON.stringify(payload) }),
+  login: (username: string, password: string) =>
+    request<AuthResult>('/v1/auth:login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  // logout 吊销服务端会话。调用方应无论成败都清掉本地登录态。
+  logout: () => request<{ message: string }>('/v1/auth:logout', { method: 'POST', body: '{}' }),
+
   // ---- Team ----
   // 团队创建时会一并创建主 Agent，因此支持与 createAgent 一致的两种创建方式：
   //   - AGENT_KIND_PROMPT（默认，未传 kind 时按此方式处理）：prompt/model 留空则使用平台默认值；

@@ -1,28 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
+import { api } from './api/client'
+import { clearSession, getSession, subscribe, type AuthUser } from './auth/session'
+import { AuthPage } from './components/AuthPage'
 import { Sidebar } from './components/Sidebar'
 import { TabsBar } from './components/TabsBar'
 import { TeamTab } from './components/TeamTab'
 import { WorkspaceTab } from './components/WorkspaceTab'
-import { LoginGate } from './components/LoginGate'
 import { useAppState } from './state/useAppState'
-import { getToken, UNAUTHORIZED_EVENT } from './api/auth'
 import { IconMark } from './icons'
 
-// 登录门：无 token 或后端返回 401 时展示登录页；登录成功后才挂载主界面（避免未登录就发请求）。
+// App 只负责按登录态切换页面：未登录显示登录 / 注册页，已登录进入主界面。
+// 主界面（MainApp）在登出 / token 失效时会整体卸载，tabs、团队列表等状态随之清空，
+// 避免切换账号后残留上一个用户的数据。
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!getToken())
-
-  useEffect(() => {
-    const onUnauthorized = () => setAuthed(false)
-    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
-    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
-  }, [])
-
-  if (!authed) return <LoginGate onLogin={() => setAuthed(true)} />
-  return <AuthedApp />
+  const session = useSyncExternalStore(subscribe, getSession)
+  if (!session.token) return <AuthPage />
+  return <MainApp user={session.user} />
 }
 
-function AuthedApp() {
+function displayName(user: AuthUser | null): string {
+  return user?.nickname || user?.username || '已登录'
+}
+
+function MainApp({ user }: { user: AuthUser | null }) {
+  // 登出：先通知服务端吊销会话（失败也不影响本地退出），再清掉本地登录态
+  const handleLogout = () => {
+    void api.logout().catch(() => undefined).finally(clearSession)
+  }
+
   const {
     teams,
     teamsLoading,
@@ -52,6 +57,8 @@ function AuthedApp() {
         activeTeamId={activeTeamId}
         onCreateTeam={openTeamCreateTab}
         onSelectTeam={openTeamTab}
+        userName={displayName(user)}
+        onLogout={handleLogout}
       />
       <div className="main-area">
         <TabsBar tabs={tabs} activeTabId={activeTabId} onActivate={activateTab} onClose={closeTab} />

@@ -7,9 +7,12 @@ interface SidebarProps {
   activeTeamId: string | null
   onCreateTeam: () => void
   onSelectTeam: (team: Team) => void
+  /** 当前登录用户的展示名 */
+  userName: string
+  onLogout: () => void
 }
 
-export function Sidebar({ teams, loading, activeTeamId, onCreateTeam, onSelectTeam }: SidebarProps) {
+export function Sidebar({ teams, loading, activeTeamId, onCreateTeam, onSelectTeam, userName, onLogout }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -40,6 +43,14 @@ export function Sidebar({ teams, loading, activeTeamId, onCreateTeam, onSelectTe
             </button>
           ))}
         </div>
+      </div>
+      <div className="sidebar-footer">
+        <span className="sidebar-user" title={userName}>
+          {userName}
+        </span>
+        <button className="sidebar-logout" onClick={onLogout}>
+          退出登录
+        </button>
       </div>
     </aside>
   )
