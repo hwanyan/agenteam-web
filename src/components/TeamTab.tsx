@@ -472,7 +472,7 @@ export function TeamTab({ teamId, currentUserId, onCreated, onOpenWorkspace, onT
       {loading && agents.length === 0 ? (
         <div className="text-muted">加载中...</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="agent-list">
           {agents.map((agent) => {
             const isA2A = agent.kind === 'AGENT_KIND_A2A'
             return (
