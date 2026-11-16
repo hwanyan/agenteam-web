@@ -1,4 +1,15 @@
-import type { A2AConfig, Agent, ChatMessage, McpTool, ModelOption, Option, SendMessageStreamChunk, Team } from '../types'
+import type {
+  A2AConfig,
+  Agent,
+  ChatMessage,
+  McpTool,
+  ModelOption,
+  Option,
+  SendMessageStreamChunk,
+  Team,
+  TeamMember,
+  TeamRole,
+} from '../types'
 import { clearSession, getSession, setSession, type AuthUser } from '../auth/session'
 
 // 默认空串：请求走当前页面同源的相对路径（开发时由 vite proxy 转发到后端，生产经 nginx 反代，
@@ -75,6 +86,16 @@ async function doRefresh(usedToken: string | null): Promise<boolean> {
   } catch {
     return false // 网络错误：同上，保留登录态
   }
+}
+
+// refreshUserProfile 在本地登录态缺少平台角色（role）时主动刷新一次令牌，把 auth 返回的最新用户信息补进来。
+// 场景：升级前就已登录的用户，localStorage 里的 user 没有 role 字段，会被当作普通用户，管理员看不到管理员入口。
+// 必须复用 refreshSession 的互斥：Refresh Token 每次使用都会轮换，多个标签页 / 并发请求各自刷新会被服务端当成重放。
+// 失败（网络、认证服务暂不可用）一律静默忽略：只是少了管理员入口，下次令牌自然过期刷新时会补上。
+export async function ensureUserRole(): Promise<void> {
+  const cur = getSession()
+  if (!cur.token || !cur.refreshToken || !cur.user || cur.user.role !== undefined) return
+  await refreshSession(null).catch(() => undefined)
 }
 
 // authedFetch 发起带登录态的请求；遇到 401 时刷新令牌并重试一次。
@@ -200,9 +221,33 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, ...payload }),
     }),
-  listTeams: () => request<{ teams: Team[] }>('/v1/teams'),
+  // listTeams 默认只返回“我所在的团队”；all=true 仅平台管理员可用，返回平台内全部团队
+  // （非管理员传 all=true 会得到 403）。
+  listTeams: (opts?: { all?: boolean }) =>
+    request<{ teams: Team[] }>(`/v1/teams${opts?.all ? '?all=true' : ''}`),
   getTeam: (id: string) => request<{ team: Team }>(`/v1/teams/${id}`),
+  // deleteTeam 软删除团队，仅团队 owner（或平台管理员）可操作。
   deleteTeam: (id: string) => request<Record<string, never>>(`/v1/teams/${id}`, { method: 'DELETE' }),
+
+  // ---- Team Members（团队成员管理；这里的角色是团队级角色，与平台角色无关）----
+  // 成员列表：owner 在前，其余按加入时间升序。团队成员可见。
+  listTeamMembers: (teamId: string) => request<{ members: TeamMember[] }>(`/v1/teams/${teamId}/members`),
+  // 邀请用户加入团队（直接加入，无需对方确认），仅 owner 可用。按用户名精确匹配（不区分大小写），
+  // 被邀请人必须至少登录过本平台一次；role 留空按 member 处理。
+  addTeamMember: (teamId: string, username: string, role: Exclude<TeamRole, 'TEAM_ROLE_UNSPECIFIED'>) =>
+    request<{ member: TeamMember }>(`/v1/teams/${teamId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ username, role }),
+    }),
+  // 修改成员角色，仅 owner 可用；不允许把团队最后一个 owner 降级。
+  updateTeamMemberRole: (teamId: string, userId: string, role: Exclude<TeamRole, 'TEAM_ROLE_UNSPECIFIED'>) =>
+    request<{ member: TeamMember }>(`/v1/teams/${teamId}/members/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+  // 移除成员。owner 可移除任何人；任何成员都可以移除自己（退出团队）；不允许移除最后一个 owner。
+  removeTeamMember: (teamId: string, userId: string) =>
+    request<Record<string, never>>(`/v1/teams/${teamId}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
 
   // ---- Agent ----
   getAgent: (id: string) => request<{ agent: Agent }>(`/v1/agents/${id}`),

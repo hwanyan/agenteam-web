@@ -193,6 +193,36 @@ select {
   white-space: nowrap;
 }
 
+/* 仅在“我是普通成员”时标出，owner 是默认情形不加噪音 */
+.team-item-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--sidebar-text-dim);
+  border: 1px solid var(--sidebar-line);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+/* 平台管理员的“查看全部团队”开关 */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 /* ---------------- Buttons / Form ---------------- */
 .btn {
   display: inline-flex;
@@ -890,6 +920,137 @@ select {
 .option-chip-edit:hover {
   color: var(--ink);
   background: var(--paper);
+}
+
+/* fieldset 仅用于整体禁用其内的表单控件（只读模式），去掉浏览器默认的边框 / 内边距 */
+.form-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.form-fieldset:disabled .form-input,
+.form-fieldset:disabled .form-textarea,
+.form-fieldset:disabled .form-select {
+  background: var(--paper);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+.form-fieldset:disabled .option-chip {
+  cursor: default;
+}
+
+/* ---------------- Team members ---------------- */
+.team-role-badge {
+  display: inline-block;
+  margin-left: 10px;
+  vertical-align: middle;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.team-role-badge-owner {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.form-notice {
+  background: var(--success-soft);
+  color: var(--success);
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--success);
+  font-size: 13px;
+  margin: 10px 0;
+}
+
+.member-invite-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.member-invite-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-role-select {
+  width: 104px;
+  flex-shrink: 0;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+}
+
+.member-row + .member-row {
+  border-top: 1px solid var(--line);
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.member-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.member-role-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.member-role-tag-owner {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.member-remove {
+  padding: 6px 12px;
+  flex-shrink: 0;
 }
 
 /* ---------------- Workspace / chat ---------------- */

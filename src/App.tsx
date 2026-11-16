@@ -1,6 +1,6 @@
-import { useEffect, useSyncExternalStore } from 'react'
-import { api } from './api/client'
-import { clearSession, getSession, subscribe, type AuthUser } from './auth/session'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { api, ensureUserRole } from './api/client'
+import { clearSession, getSession, isPlatformAdmin, subscribe, type AuthUser } from './auth/session'
 import { AuthPage } from './components/AuthPage'
 import { Sidebar } from './components/Sidebar'
 import { TabsBar } from './components/TabsBar'
@@ -28,6 +28,11 @@ function MainApp({ user }: { user: AuthUser | null }) {
     void api.logout().catch(() => undefined).finally(clearSession)
   }
 
+  // 平台管理员（平台角色 admin，来自 auth）可切换为查看平台内全部团队；其他人只能看到自己所在的团队。
+  // 这与团队内角色（owner / member）是两套互不相干的概念。
+  const isAdmin = isPlatformAdmin(user)
+  const [showAllTeams, setShowAllTeams] = useState(false)
+
   const {
     teams,
     teamsLoading,
@@ -36,15 +41,27 @@ function MainApp({ user }: { user: AuthUser | null }) {
     activeTabId,
     activateTab,
     closeTab,
+    closeTeamTabs,
     openTeamCreateTab,
     openTeamTab,
     markTabCreated,
     openWorkspaceTab,
-  } = useAppState()
+  } = useAppState({ allTeams: isAdmin && showAllTeams })
 
   useEffect(() => {
     void refreshTeams()
   }, [refreshTeams])
+
+  // 升级前已登录的用户本地没有平台角色，补一次（见 ensureUserRole）。
+  useEffect(() => {
+    void ensureUserRole()
+  }, [])
+
+  // 团队已不再对当前用户可见（被删除，或当前用户自己退出）：关掉它的标签页并刷新团队列表。
+  const handleTeamGone = (teamId: string) => {
+    closeTeamTabs(teamId)
+    void refreshTeams()
+  }
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
   const activeTeamId = activeTab?.kind === 'team' ? activeTab.teamId : activeTab?.kind === 'workspace' ? activeTab.teamId : null
@@ -59,6 +76,9 @@ function MainApp({ user }: { user: AuthUser | null }) {
         onSelectTeam={openTeamTab}
         userName={displayName(user)}
         onLogout={handleLogout}
+        isAdmin={isAdmin}
+        showAllTeams={showAllTeams}
+        onToggleAllTeams={setShowAllTeams}
       />
       <div className="main-area">
         <TabsBar tabs={tabs} activeTabId={activeTabId} onActivate={activateTab} onClose={closeTab} />
@@ -79,11 +99,13 @@ function MainApp({ user }: { user: AuthUser | null }) {
               {tab.kind === 'team' ? (
                 <TeamTab
                   teamId={tab.teamId}
+                  currentUserId={user?.id ?? ''}
                   onCreated={(team) => {
                     markTabCreated(tab.id, team)
                     void refreshTeams()
                   }}
                   onOpenWorkspace={openWorkspaceTab}
+                  onTeamGone={handleTeamGone}
                 />
               ) : (
                 <WorkspaceTab

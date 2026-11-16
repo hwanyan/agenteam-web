@@ -54,12 +54,33 @@ export interface Agent {
   a2aConfig?: A2AConfig
 }
 
+// 用户在某个团队内的角色（团队级角色，agenteam 自己的 team_members 表维护）。
+// 与登录用户的“平台角色”（user / admin，来自 hwan auth，见 AuthUser.role）是两套互不相干的概念：
+// 平台角色回答“这个人是不是整个平台的管理员”，团队角色回答“这个人在这个团队里能做什么”。
+//   - TEAM_ROLE_OWNER：增删改 Agent / MCP 工具、管理成员、删除团队；
+//   - TEAM_ROLE_MEMBER：只读，并可在工作区对话。
+// grpc-gateway 对枚举零值（UNSPECIFIED）会省略字段，因此该字段可能缺失。
+export type TeamRole = 'TEAM_ROLE_UNSPECIFIED' | 'TEAM_ROLE_OWNER' | 'TEAM_ROLE_MEMBER'
+
 export interface Team {
   id: string
   name: string
   mainAgentId: string
   createdAt: string
   updatedAt: string
+  // 只读：当前登录用户在该团队内的有效角色。平台管理员越过成员校验访问时视为 OWNER。
+  // 前端据此决定是否展示编辑入口；真正的授权始终由后端判断，不能依赖这里。
+  myRole?: TeamRole
+}
+
+// 团队成员。
+export interface TeamMember {
+  userId: string
+  // 用户名；该用户从未登录过本平台时为空（grpc-gateway 会省略空串），展示时回退为 userId。
+  username?: string
+  role?: TeamRole
+  // 加入团队的时间（Unix 秒；int64 在 protojson 里是字符串）
+  createdAt: string
 }
 
 // 一次工具调用的展示信息，用于在回复下方展示"这条回复过程中调用了哪个工具"。

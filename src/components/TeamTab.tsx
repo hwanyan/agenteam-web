@@ -3,12 +3,18 @@ import { api, ApiError } from '../api/client'
 import type { Agent, AgentKind, ModelOption, Option, Team } from '../types'
 import { AgentConfigModal } from './AgentConfigModal'
 import { CreateAgentModal } from './CreateAgentModal'
-import { IconAgent, IconChevronRight, IconLink, IconPlus, IconTrash } from '../icons'
+import { TeamMembersModal } from './TeamMembersModal'
+import { isTeamOwner, roleLabel } from './teamRole'
+import { IconAgent, IconChevronRight, IconLink, IconPlus, IconTrash, IconUsers } from '../icons'
 
 interface TeamTabProps {
   teamId: string | null
+  /** 当前登录用户的 id：成员管理里用于标记“我”、判断是否在退出团队。 */
+  currentUserId: string
   onCreated: (team: Team) => void
   onOpenWorkspace: (team: Team) => void
+  /** 团队已不再对当前用户可见（被删除，或当前用户自己退出）：调用方应关闭相关标签页并刷新团队列表。 */
+  onTeamGone: (teamId: string) => void
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -25,7 +31,7 @@ interface A2APreview {
   streaming: boolean
 }
 
-export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
+export function TeamTab({ teamId, currentUserId, onCreated, onOpenWorkspace, onTeamGone }: TeamTabProps) {
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +63,9 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
   const [loading, setLoading] = useState(false)
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [membersModalOpen, setMembersModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deletingTeam, setDeletingTeam] = useState(false)
 
   function loadAgents(id: string) {
     return api.listAgents(id).then((res) => setAgents(res.agents ?? []))
@@ -204,6 +212,26 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
       setError(err instanceof ApiError ? err.message : '删除失败，请重试')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleDeleteTeam() {
+    if (!teamId || !team) return
+    if (
+      !window.confirm(
+        `确认删除团队「${team.name}」吗？\n团队下的所有 Agent、MCP 工具和聊天记录都将不可再访问，此操作不可恢复。`,
+      )
+    ) {
+      return
+    }
+    setDeletingTeam(true)
+    setError(null)
+    try {
+      await api.deleteTeam(teamId)
+      onTeamGone(teamId)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '删除团队失败，请重试')
+      setDeletingTeam(false)
     }
   }
 
@@ -405,15 +433,36 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
     )
   }
 
+  // 团队级角色：owner 才能增删改 Agent / MCP 工具、管理成员、删除团队；member 只读并可对话。
+  // 这里的显隐只是体验优化，权限始终由后端判断。
+  const isOwner = isTeamOwner(team)
+
   return (
     <div className="page">
       <div className="page-header">
-        <h2>{team.name}</h2>
+        <h2>
+          {team.name}
+          <span className={`team-role-badge ${isOwner ? 'team-role-badge-owner' : ''}`} title="你在该团队内的角色">
+            {roleLabel(team.myRole)}
+          </span>
+        </h2>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn" onClick={() => setAddModalOpen(true)}>
-            <IconPlus size={14} />
-            新增 Agent
+          <button className="btn" onClick={() => setMembersModalOpen(true)}>
+            <IconUsers size={14} />
+            {isOwner ? '成员管理' : '团队成员'}
           </button>
+          {isOwner && (
+            <button className="btn" onClick={() => setAddModalOpen(true)}>
+              <IconPlus size={14} />
+              新增 Agent
+            </button>
+          )}
+          {isOwner && (
+            <button className="btn btn-danger" onClick={handleDeleteTeam} disabled={deletingTeam}>
+              <IconTrash size={14} />
+              {deletingTeam ? '删除中...' : '删除团队'}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={() => onOpenWorkspace(team)}>
             进入工作区
           </button>
@@ -466,7 +515,7 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
                     </>
                   )}
                 </div>
-                {!agent.isMain && (
+                {isOwner && !agent.isMain && (
                   <button
                     className="modal-close"
                     title="删除 Agent"
@@ -491,18 +540,31 @@ export function TeamTab({ teamId, onCreated, onOpenWorkspace }: TeamTabProps) {
       {activeAgentId && (
         <AgentConfigModal
           agentId={activeAgentId}
+          readOnly={!isOwner}
           onClose={() => setActiveAgentId(null)}
           onSaved={(updated) => setAgents((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))}
         />
       )}
 
-      {addModalOpen && (
+      {addModalOpen && isOwner && (
         <CreateAgentModal
           teamId={teamId}
           onClose={() => setAddModalOpen(false)}
           onCreated={(created) => {
             setAgents((prev) => [...prev, created])
             setAddModalOpen(false)
+          }}
+        />
+      )}
+
+      {membersModalOpen && (
+        <TeamMembersModal
+          team={team}
+          currentUserId={currentUserId}
+          onClose={() => setMembersModalOpen(false)}
+          onLeft={() => {
+            setMembersModalOpen(false)
+            onTeamGone(team.id)
           }}
         />
       )}

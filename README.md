@@ -11,15 +11,33 @@
   右下角“保存”会调用后端 `UpdateAgent`，服务端据此重新加载该 Agent。
 - 点击“进入工作区”：打开一个新 Tab，可与该团队的主 Agent 对话；发送消息采用
   流式接口（`sendMessageStream`），Agent 回复以打字机效果逐字显示。
+- 团队详情页右上角「成员管理 / 团队成员」：弹窗中查看团队成员；owner 可邀请成员（按用户名）、修改角色、移除成员，
+  任何成员都可以退出团队。详见下文「团队成员与权限」。
+
+## 团队成员与权限（两套角色，互不相干）
+
+| | 平台角色 | 团队角色 |
+| --- | --- | --- |
+| 取值 | `user` / `admin` | `owner` / `member` |
+| 含义 | 这个人是不是整个平台的管理员 | 这个人在**某个团队**里能做什么 |
+| 来源 | hwan auth，登录响应里的 `user.role`（`AuthUser.role`） | agenteam 的 `team_members` 表，团队接口里的 `Team.myRole` |
+
+- 侧边栏默认只列出「我的团队」；**平台管理员**额外有「查看全部团队」开关（对应 `GET /v1/teams?all=true`），管理员越过成员校验，在任何团队内都按 owner 对待。
+- **owner**：看到「成员管理」「新增 Agent」「删除团队」，Agent 卡片上有删除按钮，Agent 配置弹窗可编辑保存，可接入 / 编辑 / 删除 MCP 工具。
+- **member**：只读 —— 团队页只有「团队成员」（可退出团队）和「进入工作区」，Agent 配置弹窗为只读（所有字段禁用、无保存按钮），不能管理 MCP 工具；仍可在工作区对话。
+- 邀请成员直接加入、无需对方确认；被邀请的人必须至少登录过本平台一次，否则提示“用户不存在，或该用户尚未登录过本平台”。
+- 团队至少保留一名 owner，最后一个 owner 不能被降级或移除（后端校验，前端原样展示错误）。
+- **前端的显隐只是体验优化**，真正的授权始终由后端判断：绕过前端直接调接口，越权请求同样会被后端拒绝（非成员返回 404，成员越权返回 403）。
 
 ## 目录结构
 
 ```
-src/api/client.ts          后端 REST 接口封装（含登录 / 注册，自动携带登录 token，401 自动退出）
-src/auth/session.ts        登录态存储（token + 用户信息，localStorage 持久化）
+src/api/client.ts          后端 REST 接口封装（含登录 / 注册、团队成员管理，自动携带登录 token，401 自动退出）
+src/auth/session.ts        登录态存储（token + 用户信息，localStorage 持久化）与平台角色判断 isPlatformAdmin
 src/types.ts               与后端 protojson 对应的类型定义
 src/state/useAppState.ts   Tab / 团队列表状态管理
-src/components/            AuthPage / Sidebar / TabsBar / TeamTab / WorkspaceTab / AgentConfigModal
+src/components/            AuthPage / Sidebar / TabsBar / TeamTab / WorkspaceTab / AgentConfigModal / TeamMembersModal
+src/components/teamRole.ts 团队角色的标签与判断（isTeamOwner / roleLabel）
 ```
 
 ## 运行

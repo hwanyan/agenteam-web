@@ -12,7 +12,10 @@ function nextTabId() {
   return `tab-${tabSeq}`
 }
 
-export function useAppState() {
+// allTeams：仅平台管理员可用，列出平台内全部团队而不是“我所在的团队”。
+// 它是平台角色（admin）才有的能力，与团队内角色（owner / member）无关；非管理员传 true 会被后端拒绝。
+export function useAppState(opts?: { allTeams?: boolean }) {
+  const allTeams = Boolean(opts?.allTeams)
   const [teams, setTeams] = useState<Team[]>([])
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [tabs, setTabs] = useState<TabItem[]>([])
@@ -21,11 +24,23 @@ export function useAppState() {
   const refreshTeams = useCallback(async () => {
     setTeamsLoading(true)
     try {
-      const res = await api.listTeams()
+      const res = await api.listTeams({ all: allTeams })
       setTeams(res.teams ?? [])
     } finally {
       setTeamsLoading(false)
     }
+  }, [allTeams])
+
+  // 团队已不再对当前用户可见（被删除，或当前用户退出）：关闭该团队的所有标签页（详情 + 工作区）。
+  const closeTeamTabs = useCallback((teamId: string) => {
+    setTabs((prev) => {
+      const next = prev.filter((t) => t.teamId !== teamId)
+      setActiveTabId((curActive) => {
+        if (curActive && next.some((t) => t.id === curActive)) return curActive
+        return next[0]?.id ?? null
+      })
+      return next
+    })
   }, [])
 
   const activateTab = useCallback((id: string) => setActiveTabId(id), [])
@@ -107,6 +122,7 @@ export function useAppState() {
     activeTabId,
     activateTab,
     closeTab,
+    closeTeamTabs,
     openTeamCreateTab,
     openTeamTab,
     markTabCreated,

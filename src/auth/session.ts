@@ -13,6 +13,15 @@ export interface AuthUser {
   email: string
   nickname: string
   avatarUrl: string
+  // 平台级角色（user / admin，来自 hwan auth）。仅用于决定是否展示管理员入口（如“全部团队”）；
+  // 真正的授权由后端按 Token 里的 roles 判断。旧版本登录态里没有该字段，按普通用户处理。
+  // 与团队内角色（Team.myRole）是两套互不相干的概念。
+  role?: string
+}
+
+/** 是否为平台管理员。 */
+export function isPlatformAdmin(user: AuthUser | null | undefined): boolean {
+  return user?.role === 'admin'
 }
 
 export interface Session {

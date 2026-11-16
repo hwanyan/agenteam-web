@@ -136,6 +136,18 @@ export function IconTrash(props: IconProps) {
   )
 }
 
+// 成员：两个人形
+export function IconUsers(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="7.5" cy="7" r="2.6" />
+      <path d="M2.5 16.5c0-3 2.3-5 5-5s5 2 5 5" />
+      <circle cx="14" cy="7.8" r="2.1" />
+      <path d="M14.2 11.6c2 .2 3.5 1.8 3.5 4.2" />
+    </svg>
+  )
+}
+
 // A2A 链接：两个节点通过连线相连，代表跨系统协议链接一个外部 Agent
 export function IconLink(props: IconProps) {
   return (

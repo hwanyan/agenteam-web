@@ -8,6 +8,9 @@ interface AgentConfigModalProps {
   agentId: string
   onClose: () => void
   onSaved: (agent: Agent) => void
+  // 只读模式：团队成员（member）只能查看 Agent 配置，不能修改（修改需要团队 owner）。
+  // 前端的只读只是体验优化，权限始终由后端判断。
+  readOnly?: boolean
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,7 +27,7 @@ interface A2APreview {
   streaming: boolean
 }
 
-export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModalProps) {
+export function AgentConfigModal({ agentId, onClose, onSaved, readOnly = false }: AgentConfigModalProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -219,7 +222,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
       <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>Agent 配置</span>
+          <span>{readOnly ? 'Agent 配置（只读）' : 'Agent 配置'}</span>
           {isA2A && (
             <span className="agent-card-badge">
               <IconLink size={11} /> A2A
@@ -239,7 +242,14 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
         ) : (
           <div className="modal-body">
             {error && <div className="form-error">{error}</div>}
+            {readOnly && (
+              <div className="form-hint" style={{ margin: '12px 0 0' }}>
+                你是该团队的「成员」，只能查看 Agent 配置；修改配置需要团队「所有者」权限。
+              </div>
+            )}
 
+            {/* fieldset disabled 一次性禁用其内全部表单控件（输入框、下拉、勾选、按钮），不会漏掉任何字段 */}
+            <fieldset className="form-fieldset" disabled={readOnly}>
             <label className="form-label">Agent 名称</label>
             <input
               className="form-input"
@@ -352,7 +362,7 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
                       />
                       <span className="option-chip-name">{t.name}</span>
                       <span className="option-chip-desc">{t.description}</span>
-                      {t.isCustom && (
+                      {t.isCustom && !readOnly && (
                         <button
                           type="button"
                           className="option-chip-edit"
@@ -369,10 +379,12 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
                     </label>
                   ))}
                 </div>
-                <button className="btn" style={{ marginTop: 8 }} onClick={() => setAddToolModalOpen(true)}>
-                  <IconPlus size={14} />
-                  接入新的 MCP 工具
-                </button>
+                {!readOnly && (
+                  <button className="btn" style={{ marginTop: 8 }} onClick={() => setAddToolModalOpen(true)}>
+                    <IconPlus size={14} />
+                    接入新的 MCP 工具
+                  </button>
+                )}
 
                 <label className="form-label">Skill</label>
                 <div className="option-grid">
@@ -390,16 +402,19 @@ export function AgentConfigModal({ agentId, onClose, onSaved }: AgentConfigModal
                 </div>
               </>
             )}
+            </fieldset>
           </div>
         )}
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose} disabled={saving}>
-            取消
+            {readOnly ? '关闭' : '取消'}
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={loading || saving}>
-            {saving ? '保存中...' : '保存'}
-          </button>
+          {!readOnly && (
+            <button className="btn btn-primary" onClick={handleSave} disabled={loading || saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          )}
         </div>
       </div>
       </div>
